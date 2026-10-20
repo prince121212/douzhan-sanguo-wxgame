@@ -1,0 +1,47 @@
+; 斗战三国 · 虎牢关（微信小游戏版）
+config_version=5
+
+[application]
+config/name="斗战三国"
+config/description="虎牢关斗将 · 横版对战"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "GL Compatibility")
+boot_splash/show_image=false
+boot_splash/bg_color=Color(0.03, 0.02, 0.02, 1)
+config/icon="res://assets/ui/icon.png"
+
+[autoload]
+Game="*res://scripts/core/game.gd"
+Sfx="*res://scripts/core/sfx.gd"
+Roster="*res://scripts/core/roster.gd"
+Bank="*res://scripts/core/sprite_bank.gd"
+
+[display]
+window/size/viewport_width=1920
+window/size/viewport_height=1080
+window/size/window_width_override=1280
+window/size/window_height_override=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=0
+window/vsync/vsync_mode=1
+
+[importer_defaults]
+texture={
+"mipmaps/generate": false
+}
+
+[input_devices]
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+textures/vram_compression/import_etc2_astc=false
+textures/canvas_textures/default_texture_filter=1
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
+viewport/hdr_2d=false
+environment/defaults/default_clear_color=Color(0.03, 0.02, 0.02, 1)
+2d/snap/snap_2d_transforms_to_pixel=false
+
+[physics]
+common/physics_ticks_per_second=60

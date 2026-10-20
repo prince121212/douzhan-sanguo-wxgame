@@ -1,0 +1,43 @@
+{
+  "description": "斗战三国 · 虎牢关斗将横版对战",
+  "projectname": "斗战三国",
+  "appid": "wx13f8272f953e806a",
+  "compileType": "game",
+  "miniprogramRoot": "./",
+  "setting": {
+    "es6": true,
+    "minified": false,
+    "uploadWithSourceMap": false,
+    "postcss": false,
+    "compileWorklet": false,
+    "uglifyFileName": false,
+    "enhance": false,
+    "packNpmManually": false,
+    "packNpmRelationList": [],
+    "minifyWXSS": true,
+    "minifyWXML": true,
+    "localPlugins": false,
+    "disableUseStrict": false,
+    "useCompilerPlugins": false,
+    "condition": false,
+    "urlCheck": false,
+    "babelSetting": {
+      "ignore": [],
+      "disablePlugins": [],
+      "outputPath": ""
+    }
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "value": "SHA256SUMS.txt",
+        "type": "file"
+      }
+    ],
+    "include": []
+  },
+  "libVersion": "3.17.4",
+  "simulatorPluginLibVersion": {},
+  "isGameTourist": false,
+  "editorSetting": {}
+}

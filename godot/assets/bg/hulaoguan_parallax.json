@@ -1,0 +1,98 @@
+{
+ "viewport": [
+  1920,
+  1080
+ ],
+ "pixel_scale": 1.0,
+ "notes": [
+  "坐标以 1920x1080 视口为准，像素与原图 1:1；scroll_scale 对应 Godot 4 Parallax2D.scroll_scale（0=跟屏幕不动，1=跟世界同速）。",
+  "推荐两层视差：sky（远）+ ground（近），角色站在 ground 上；sky 与 ground 都可水平无缝平铺（repeat_size.x = 图宽）。",
+  "ground 顶部 48px 是 alpha 羽化，按下面的 position 压在 sky 底边上即可消除接缝；z_index 要高于 sky。",
+  "不做视差时可以只用 full_scene（原图），等比放大到 1920 宽正好 1920x1080。"
+ ],
+ "layers": [
+  {
+   "name": "sky",
+   "file": "hulaoguan_sky.png",
+   "size": [
+    1920,
+    540
+   ],
+   "role": "远景：天空/远山/悬崖/虎牢关城墙",
+   "scroll_scale": [
+    0.3,
+    0.15
+   ],
+   "position": [
+    0,
+    0
+   ],
+   "z_index": -30,
+   "repeat_size": [
+    1920,
+    0
+   ],
+   "horizon_y": 495,
+   "original_rect_in_layer": [
+    124,
+    250,
+    1672,
+    290
+   ],
+   "generated": {
+    "sky_and_far_mountains": [
+     0,
+     0,
+     1920,
+     250
+    ],
+    "side_fill_px": 124,
+    "cliff_extension_px": 160
+   }
+  },
+  {
+   "name": "ground",
+   "file": "hulaoguan_ground.png",
+   "size": [
+    2600,
+    1200
+   ],
+   "role": "近景地面：角色站立层，横向滚动补边",
+   "scroll_scale": [
+    1.0,
+    1.0
+   ],
+   "position": [
+    -340,
+    492
+   ],
+   "z_index": -10,
+   "repeat_size": [
+    2600,
+    0
+   ],
+   "top_feather_px": 48,
+   "suggested_floor_y": 900
+  },
+  {
+   "name": "full_scene",
+   "file": "hulaoguan.png",
+   "size": [
+    1672,
+    941
+   ],
+   "role": "原图整幅（含两侧营寨道具），可选的中景/静态背景",
+   "scroll_scale": [
+    0.85,
+    0.85
+   ],
+   "position": [
+    0,
+    0
+   ],
+   "scale": 1.1483,
+   "z_index": -20,
+   "optional": true
+  }
+ ]
+}

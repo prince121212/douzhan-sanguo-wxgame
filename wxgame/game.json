@@ -1,0 +1,22 @@
+{
+  "deviceOrientation": "landscape",
+  "showStatusBar": false,
+  "subpackages": [
+    {
+      "name": "engine",
+      "root": "pkg_engine/",
+      "files": [
+        "index.js",
+        "index.wasm.br",
+        "brotli_decoder.js"
+      ]
+    },
+    {
+      "name": "assets",
+      "root": "pkg_assets/",
+      "files": [
+        "index.pck.br"
+      ]
+    }
+  ]
+}
