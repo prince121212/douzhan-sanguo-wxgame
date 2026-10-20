@@ -7,6 +7,7 @@ const MAP_RECT := Rect2(0, 0, 1672, 941)
 const ArrowFx := preload("res://scripts/battle/fx/arrow.gd")
 const ResultPanel := preload("res://scripts/ui/result_panel.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
+const TouchControls := preload("res://scripts/ui/touch_controls.gd")
 
 var world: Node2D
 var arena: Node2D
@@ -47,6 +48,8 @@ var match_start_time := 0.0
 var unhorse_pending: Array = []
 var result_panel: Node = null
 var pause_menu: Node = null
+var touch: Node = null          # 触屏：摇杆 + 招式按钮（微信小游戏 / 手机）
+var prompt_dodge_until := -1.0  # 绝技反应窗口：让触屏的「闪」按钮高亮
 var autoplay_next_t := -1.0
 var mounted_pass_t := 0.0
 var tele := {}                 # 统计：各类事件次数
@@ -147,6 +150,14 @@ func _build() -> void:
 	pause_menu.set_script(PauseMenu)
 	pause_menu.battle = self
 	add_child(pause_menu)
+	# 微信小游戏 / 手机：加一层虚拟摇杆 + 招式按钮（桌面不显示）
+	# 注意：web 导出在小游戏里 OS.has_feature("web") 为 true，但触摸能力仍要看
+	# Game.touch_ui（它综合了 web/mobile/触摸屏/--touch 四种判定）。
+	if Game.touch_ui:
+		touch = CanvasLayer.new()
+		touch.set_script(TouchControls)
+		touch.battle = self
+		add_child(touch)
 
 
 func _spawn_fighters() -> void:
@@ -821,6 +832,26 @@ func narrate(text: String, imp := 0) -> void:
 	_last_narrate_t = real_time
 	_recent_lines[text] = real_time
 	hud.narrate(text, imp)
+
+
+## 触屏：跳过开场 / 终结回放
+func request_skip() -> void:
+	if replaying:
+		replay_skip = true
+	elif phase == "intro":
+		skip_intro = true
+
+
+## 触屏：观战倍速（×1 → ×1.5 → ×2）
+func toggle_speed() -> void:
+	user_speed = {1.0: 1.5, 1.5: 2.0, 2.0: 1.0}.get(user_speed, 1.0)
+	narrate("观战速度 ×%s" % str(user_speed), 0)
+
+
+## 触屏：隐藏 / 显示血条
+func toggle_hud() -> void:
+	if hud:
+		hud.set_visible_hud(hud.user_hidden)
 
 
 func mode_label() -> String:

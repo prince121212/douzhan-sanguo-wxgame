@@ -1,16 +1,15 @@
 /* ==========================================================================
- * game.js —— 斗战三国 · 微信小游戏入口（诊断插桩版）
+ * game.js —— 斗战三国 · 微信小游戏入口
  * --------------------------------------------------------------------------
- * 本版本在原有逻辑外增加了「启动诊断日志」，用于定位小游戏运行时
- * 启动失败/白屏问题。所有日志同时写入：
- *   1. console（开发者工具调试器可见）
- *   2. wx.env.USER_DATA_PATH + '/dzsg_boot.log'（磁盘文件，可事后读取）
+ * 这个文件是「小游戏宿主适配层」，负责三件事：
+ *   1. 宿主垫片：小游戏没有 window/document/fetch/WebAssembly 等浏览器能力，
+ *      这里补齐 Godot Web 胶水需要的最小实现（canvas / fetch / WXWebAssembly）。
+ *   2. 触摸桥：小游戏触摸只能从 wx.onTouch* 拿到，而胶水用
+ *      canvas.addEventListener('touchstart') —— 这里把两者接起来。
+ *   3. 音频旁路：微信里 Godot 的 WebAudio 总线链路到扬声器是哑的，
+ *      改成音源直连 destination，并按总线增益跟随音量。
  *
- * 模拟器磁盘位置（本机）：
- *   ~/Library/Application Support/微信开发者工具/<hash>/WeappSimulator/
- *     WeappFileSystem/<openid>/wx13f8272f953e806a/usr/dzsg_boot.log
- *
- * 排查完成后可还原：mv game.js.pre-diag game.js
+ * 启动日志写在 wx.env.USER_DATA_PATH + '/dzsg_boot.log'，同时输出到 console。
  * ========================================================================== */
 
 const g = GameGlobal;
@@ -22,204 +21,59 @@ var __LOG_PATH = null;
 try { __LOG_PATH = wx.env.USER_DATA_PATH + '/dzsg_boot.log'; } catch (e) {}
 try { if (!__LOG_PATH) __LOG_PATH = 'dzsg_boot.log'; } catch (e) {}
 
+// 日志缓冲：同步 appendFileSync 每行都落盘，在真机上很拖性能。
+// 改成攒 300ms 批量写一次；启动阶段的关键行用 __logNow 立即落盘。
+var __logBuf = [];
+var __logTimer = null;
+var __logBusy = false;
+
+function __flushLog() {
+  __logTimer = null;
+  if (!__logBuf.length) return;
+  var text = __logBuf.join('\n') + '\n';
+  __logBuf.length = 0;
+  try {
+    var fs = wx.getFileSystemManager();
+    try {
+      fs.appendFileSync(__LOG_PATH, text, 'utf8');
+    } catch (e2) {
+      fs.writeFileSync(__LOG_PATH, text, 'utf8');
+    }
+  } catch (e3) {}
+}
+
 function __log(msg) {
-  if (__logBusy) return; // 防止 console tee 递归
+  if (__logBusy) return;
   __logBusy = true;
   var line;
   try { line = '[BOOT ' + new Date().toISOString() + '] ' + msg; } catch (e) { line = '[BOOT] ' + msg; }
   try { console.log(line); } catch (e) {}
   try {
-    var fs = wx.getFileSystemManager();
-    try {
-      fs.appendFileSync(__LOG_PATH, line + '\n', 'utf8');
-    } catch (e2) {
-      // 首次写入时文件不存在会抛错，退回 writeFileSync 创建
-      fs.writeFileSync(__LOG_PATH, line + '\n', 'utf8');
-    }
-  } catch (e3) {}
+    __logBuf.push(line);
+    if (__logBuf.length > 200) __logBuf.shift();
+    if (__logTimer === null) __logTimer = setTimeout(__flushLog, 300);
+  } catch (e4) {}
   __logBusy = false;
 }
-var __logBusy = false;
+
+// 启动关键节点：立即落盘（崩溃时也能留下证据）
+function __logNow(msg) {
+  __log(msg);
+  try { __flushLog(); } catch (e) {}
+}
 
 function __probeEnv() {
   __log('===== game.js 开始执行 =====');
-  try { __log('USER_DATA_PATH=' + wx.env.USER_DATA_PATH); } catch (e) { __log('USER_DATA_PATH 获取失败: ' + e); }
-  try { __log('typeof fetch=' + (typeof fetch) + ', Response=' + (typeof Response) + ', Request=' + (typeof Request)); } catch (e) {}
-  try { __log('typeof WebAssembly=' + (typeof WebAssembly) + ', instantiateStreaming=' + (typeof WebAssembly.instantiateStreaming)); } catch (e) {}
-  try { __log('typeof globalThis=' + (typeof globalThis) + ', WXWebAssembly=' + (typeof g.WXWebAssembly) + ', window.WXWebAssembly=' + (typeof g.window.WXWebAssembly)); } catch (e) { __log('globalThis/WXWebAssembly 探测失败: ' + e); }
-  try { __log('typeof WebAssembly = ' + (typeof WebAssembly)); } catch (e) { __log('WebAssembly 探测本身抛错: ' + e); }
-  try { __log('typeof XMLHttpRequest=' + (typeof XMLHttpRequest)); } catch (e) {}
-  try { __log('typeof wx.loadSubpackage=' + (typeof wx.loadSubpackage)); } catch (e) {}
-  try { __log('typeof wx.getFileSystemManager=' + (typeof wx.getFileSystemManager)); } catch (e) {}
-  try { __log('typeof wx.createCanvas=' + (typeof wx.createCanvas)); } catch (e) {}
-  try {
-    __log('window===GameGlobal? ' + (g.window === g) + '; self===g? ' + (g.self === g) + '; top===g? ' + (g.top === g) + '; parent===g? ' + (g.parent === g));
-  } catch (e) { __log('window 身份探测失败: ' + e); }
-  try { __log('window keys: ' + Object.keys(g.window).slice(0, 60).join(',')); } catch (e) { __log('window keys 失败: ' + e); }
-  try { __log('document keys: ' + Object.keys(g.document).slice(0, 60).join(',')); } catch (e) { __log('document keys 失败: ' + e); }
-  try {
-    var dc = g.document.createElement('canvas');
-    __log('document.createElement(canvas) -> ' + (dc && dc.constructor && dc.constructor.name) + ', width=' + (dc && dc.width));
-  } catch (e) { __log('document.createElement(canvas) 失败: ' + e); }
-  try { __log('document.body=' + (typeof g.document.body) + ', document.head=' + (typeof g.document.head)); } catch (e) {}
-  try { __log('location.href=' + JSON.stringify(g.location.href) + ', location keys=' + Object.keys(g.location).slice(0,20).join(',')); } catch (e) { __log('location 探测失败: ' + e); }
-  try { __log('navigator keys: ' + Object.keys(g.navigator).join(',')); } catch (e) {}
-  try { __log('typeof g.addEventListener=' + (typeof g.addEventListener) + ', window.addEventListener=' + (typeof g.window.addEventListener)); } catch (e) {}
-  try { __log('typeof g.performance.now=' + (typeof g.performance.now) + ', g.requestAnimationFrame=' + (typeof g.requestAnimationFrame)); } catch (e) {}
-  try { __log('typeof g.indexedDB=' + (typeof g.indexedDB) + ', g.localStorage=' + (typeof g.localStorage)); } catch (e) {}
-  try {
-    var keys = Object.keys(g).join(',');
-    __log('FULL GameGlobal keys: ' + keys);
-  } catch (e) {}
+  try { __log('USER_DATA_PATH=' + wx.env.USER_DATA_PATH); } catch (e) {}
   try {
     var sys = wx.getSystemInfoSync();
-    __log('systemInfo: platform=' + sys.platform + ', brand=' + (sys.brand || '') + ', model=' + (sys.model || '') + ', SDKVersion=' + sys.SDKVersion + ', version=' + sys.version);
+    __log('systemInfo: platform=' + sys.platform + ', model=' + (sys.model || '') + ', SDKVersion=' + sys.SDKVersion);
+    __log('屏幕: ' + sys.windowWidth + 'x' + sys.windowHeight + ' @dpr=' + sys.pixelRatio);
   } catch (e) { __log('getSystemInfoSync 失败: ' + e); }
-  try {
-    var di = wx.getDeviceInfo ? wx.getDeviceInfo() : {};
-    __log('deviceInfo: ' + JSON.stringify({ platform: di.platform, system: di.system, benchmarkLevel: di.benchmarkLevel }));
-  } catch (e) {}
+  try { __log('环境: fetch=' + (typeof fetch) + ', WebAssembly=' + (typeof WebAssembly) + ', WXWebAssembly=' + (typeof g.WXWebAssembly)); } catch (e) {}
 }
 
 __probeEnv();
-
-// WXWebAssembly 行为探测（不影响主流程）
-try {
-  var WXA = g.WXWebAssembly;
-  __log('WXWebAssembly keys: ' + Object.keys(WXA).join(','));
-  __log('WXA.instantiate=' + (typeof WXA.instantiate) + ', compile=' + (typeof WXA.compile) + ', Module=' + (typeof WXA.Module) + ', Memory=' + (typeof WXA.Memory));
-
-  // 测试 A：主包内 8 字节合法 wasm（空模块）
-  var t0 = Date.now();
-  var doneA = false;
-  WXA.instantiate('test_min.wasm', {}).then(function (r) {
-    doneA = true;
-    __log('WXA 测试A（主包 test_min.wasm）成功: ' + (Date.now() - t0) + 'ms, keys=' + Object.keys(r || {}).join(','));
-  }, function (e) {
-    doneA = true;
-    __log('WXA 测试A 失败: ' + (Date.now() - t0) + 'ms, ' + (e && (e.message || e)));
-  });
-  setTimeout(function () { if (!doneA) __log('WXA 测试A 超时(15s 未返回)'); }, 15000);
-
-  // 测试 B：不存在的文件
-  var doneB = false;
-  var t1 = Date.now();
-  WXA.instantiate('pkg_engine/nope.wasm', {}).then(function (r) {
-    doneB = true;
-    __log('WXA 测试B（不存在文件）竟然成功: keys=' + Object.keys(r || {}).join(','));
-  }, function (e) {
-    doneB = true;
-    __log('WXA 测试B（不存在文件）失败: ' + (Date.now() - t1) + 'ms, ' + (e && (e.message || e)));
-  });
-  setTimeout(function () { if (!doneB) __log('WXA 测试B 超时(15s 未返回)'); }, 15000);
-
-  // 测试 C：USER_DATA_PATH 路径（8 字节文件写进去再实例化）
-  try {
-    var fsm = wx.getFileSystemManager();
-    fsm.writeFileSync(wx.env.USER_DATA_PATH + '/test_min.wasm', new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]).buffer, 'utf8');
-    __log('测试C: 已写 USER_DATA_PATH/test_min.wasm');
-    var doneC = false;
-    var t2 = Date.now();
-    WXA.instantiate(wx.env.USER_DATA_PATH + '/test_min.wasm', {}).then(function (r) {
-      doneC = true;
-      __log('WXA 测试C（USER_DATA_PATH）成功: ' + (Date.now() - t2) + 'ms');
-    }, function (e) {
-      doneC = true;
-      __log('WXA 测试C（USER_DATA_PATH）失败: ' + (Date.now() - t2) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneC) __log('WXA 测试C 超时(20s 未返回)'); }, 20000);
-  } catch (e) { __log('测试C 准备失败: ' + (e && e.message)); }
-
-  // 测试 D：主包内小 .br（13 字节）
-  try {
-    var doneD = false;
-    var t3 = Date.now();
-    WXA.instantiate('test_min.wasm.br', {}).then(function (r) {
-      doneD = true;
-      __log('WXA 测试D（主包 test_min.wasm.br）成功: ' + (Date.now() - t3) + 'ms, keys=' + Object.keys(r || {}).join(','));
-    }, function (e) {
-      doneD = true;
-      __log('WXA 测试D（主包 .br）失败: ' + (Date.now() - t3) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneD) __log('WXA 测试D 超时(20s 未返回)'); }, 20000);
-  } catch (e) { __log('测试D 异常: ' + (e && e.message)); }
-
-  // 测试 E：主包内真实大 .br（6.9MB，隔离"分包"因素）
-  try {
-    var doneE = false;
-    var t4 = Date.now();
-    WXA.instantiate('index_main.wasm.br', {}).then(function (r) {
-      doneE = true;
-      __log('WXA 测试E（主包 6.9MB .br）成功: ' + (Date.now() - t4) + 'ms');
-    }, function (e) {
-      doneE = true;
-      __log('WXA 测试E（主包 6.9MB .br）失败: ' + (Date.now() - t4) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneE) __log('WXA 测试E 超时(20s 未返回)'); }, 20000);
-  } catch (e) { __log('测试E 异常: ' + (e && e.message)); }
-
-  // 测试 F：分包内大 .br 的可读性与体积（FileSystemManager 直读）
-  try {
-    var fsm2 = wx.getFileSystemManager();
-    var t5 = Date.now();
-    var brBuf = fsm2.readFileSync('pkg_engine/index.wasm.br');
-    __log('测试F: FS 读 pkg_engine/index.wasm.br 成功, ' + brBuf.byteLength + ' bytes, ' + (Date.now() - t5) + 'ms');
-  } catch (e) { __log('测试F: FS 读分包 .br 失败: ' + (e && e.message)); }
-
-  // 测试 G：WXWebAssembly.Memory 大内存分配（验证是否为内存瓶颈）
-  try {
-    var mem = new WXA.Memory({ initial: 512, maximum: 1024 }); // 32MB -> 64MB
-    __log('测试G: new WXA.Memory(512页=32MB) 成功, buffer=' + mem.buffer.byteLength);
-  } catch (e) { __log('测试G: Memory 分配失败: ' + (e && e.message)); }
-
-  // 测试 H：SIMD 支持（Godot wasm 很可能带 SIMD 指令）
-  try {
-    var doneH = false;
-    var t7 = Date.now();
-    WXA.instantiate('test_simd.wasm', {}).then(function (r) {
-      doneH = true;
-      var f = (r.instance || r).exports && (r.instance || r).exports.f;
-      var v = f ? f() : 'n/a';
-      __log('WXA 测试H（SIMD 模块）成功: ' + (Date.now() - t7) + 'ms, f()=' + v);
-    }, function (e) {
-      doneH = true;
-      __log('WXA 测试H（SIMD 模块）失败: ' + (Date.now() - t7) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneH) __log('WXA 测试H 超时(15s 未返回)'); }, 15000);
-  } catch (e) { __log('测试H 异常: ' + (e && e.message)); }
-
-  // 测试 I：WXWebAssembly.compile 大 .br 的编译耗时（判别是否惰性编译）
-  try {
-    var doneI = false;
-    var t8 = Date.now();
-    var cp = WXA.compile ? WXA.compile('pkg_engine/index.wasm.br') : Promise.reject(new Error('no compile'));
-    cp.then(function (m) {
-      doneI = true;
-      __log('WXA 测试I（compile 6.9MB .br）成功: ' + (Date.now() - t8) + 'ms');
-    }, function (e) {
-      doneI = true;
-      __log('WXA 测试I（compile）失败: ' + (Date.now() - t8) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneI) __log('WXA 测试I 超时(30s 未返回，compile 超过 30s)'); }, 30000);
-  } catch (e) { __log('测试I 异常: ' + (e && e.message)); }
-
-  // 测试 K：新版 EH 编码（try_table 0x1F）——Godot 4.7 的 Emscripten 很可能用新编码
-  try {
-    var doneK = false;
-    var t10 = Date.now();
-    WXA.instantiate('test_eh2.wasm', {}).then(function (r) {
-      doneK = true;
-      var f = (r.instance || r).exports && (r.instance || r).exports.t;
-      var v = 'n/a';
-      try { v = f ? f() : 'n/a'; } catch (e2) { v = '调用异常:' + (e2 && e2.message); }
-      __log('WXA 测试K（try_table 模块）成功: ' + (Date.now() - t10) + 'ms, t()=' + v);
-    }, function (e) {
-      doneK = true;
-      __log('WXA 测试K（try_table 模块）失败: ' + (Date.now() - t10) + 'ms, ' + (e && (e.message || e)));
-    });
-    setTimeout(function () { if (!doneK) __log('WXA 测试K 超时(15s 未返回)'); }, 15000);
-  } catch (e) { __log('测试K 异常: ' + (e && e.message)); }
-} catch (e) { __log('WXWebAssembly 探测异常: ' + (e && (e.stack || e.message) || e)); }
 
 // 全局错误兜底：任何未捕获异常都要落盘
 try {
@@ -262,6 +116,132 @@ g.__DZSG = {
 // ---------------------------------------------------------------------------
 // 1) 宿主垫片：必须在任何引擎代码执行前完成
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// 自检探针：帧率 + 像素采样
+// ---------------------------------------------------------------------------
+// 目的：日志里「引擎启动完成」只证明 startGame 的 Promise resolve 了，
+//       不证明画面真的有内容。这里每约 5 秒读一次默认帧缓冲中心像素，
+//       配合画布尺寸，能一眼看出「黑屏空转」（canvas 0x0 或像素全黑）。
+function installFrameProbe() {
+  try {
+    var origRaf = g.requestAnimationFrame;
+    if (typeof origRaf !== 'function') { __log('无 requestAnimationFrame，跳过自检探针'); return; }
+    var frames = 0;
+    var t0 = Date.now();
+    var sampleCount = 0;
+    function sampleFrame() {
+      try {
+        var gl = g.__DZSG.gl;
+        var cv = g.__DZSG.canvas;
+        if (!gl || !cv) return;
+        sampleCount++;
+        if (sampleCount % 240 !== 1) return;   // 约 5 秒采一次
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        var px = new Uint8Array(4);
+        gl.readPixels((gl.drawingBufferWidth / 2) | 0, (gl.drawingBufferHeight / 2) | 0, 1, 1,
+                      gl.RGBA, gl.UNSIGNED_BYTE, px);
+        __log('像素采样#' + sampleCount + ': RGBA=' + px[0] + ',' + px[1] + ',' + px[2] + ',' + px[3]
+          + ' | 画布=' + cv.width + 'x' + cv.height
+          + ' | drawingBuffer=' + gl.drawingBufferWidth + 'x' + gl.drawingBufferHeight);
+      } catch (e) {
+        if (sampleCount % 1200 === 1) __log('像素采样失败: ' + (e && e.message));
+      }
+    }
+    g.requestAnimationFrame = function (cb) {
+      frames++;
+      return origRaf.call(g, function (ts) {
+        try { cb(ts); } finally { sampleFrame(); }
+      });
+    };
+    setInterval(function () {
+      var dt = Date.now() - t0;
+      if (dt < 5000) return;
+      __log('帧率: ' + (frames * 1000 / dt).toFixed(1) + ' fps');
+      frames = 0;
+      t0 = Date.now();
+    }, 5000);
+    __log('自检探针已安装（帧率 + 像素采样）');
+  } catch (e) { __log('自检探针安装失败: ' + (e && e.message)); }
+}
+
+// ---------------------------------------------------------------------------
+// 触摸桥：wx.onTouch* -> canvas.addEventListener 派发
+// ---------------------------------------------------------------------------
+function installTouchBridge(canvas) {
+  if (typeof wx === 'undefined' || typeof wx.onTouchStart !== 'function') {
+    __log('触摸桥: 环境没有 wx.onTouch*，跳过');
+    return;
+  }
+  // 小游戏里触摸事件只能从 wx.onTouch* 拿到。画布即便自带 addEventListener，
+  // 也不保证会派发 DOM 触摸事件（真机上多半不会），所以统一走 wx.onTouch*，
+  // 再把事件转发给 Godot 胶水注册的回调。鼠标等其它事件仍走原生。
+  var origAdd = (typeof canvas.addEventListener === 'function') ? canvas.addEventListener : null;
+  var origRemove = (typeof canvas.removeEventListener === 'function') ? canvas.removeEventListener : null;
+  var handlers = { touchstart: [], touchmove: [], touchend: [], touchcancel: [] };
+
+  canvas.addEventListener = function (type, fn, opts) {
+    var k = String(type);
+    if (k.indexOf('touch') === 0) {
+      if (!handlers[k]) handlers[k] = [];
+      if (handlers[k].indexOf(fn) === -1) {
+        handlers[k].push(fn);
+        __log('触摸桥: 引擎注册了 ' + k + ' 监听（共 ' + handlers[k].length + ' 个）');
+      }
+      return;
+    }
+    if (origAdd) { try { origAdd.call(canvas, type, fn, opts); } catch (e) {} }
+  };
+  canvas.removeEventListener = function (type, fn, opts) {
+    var k = String(type);
+    if (k.indexOf('touch') === 0) {
+      var arr = handlers[k];
+      if (!arr) return;
+      var i = arr.indexOf(fn);
+      if (i >= 0) arr.splice(i, 1);
+      return;
+    }
+    if (origRemove) { try { origRemove.call(canvas, type, fn, opts); } catch (e) {} }
+  };
+  // 胶水在 touchstart 里会调用 canvas.focus()，小游戏画布没有这个方法
+  if (typeof canvas.focus !== 'function') canvas.focus = function () {};
+  // 让引擎的触摸能力探测（"ontouchstart" in window）返回真
+  try { if (!('ontouchstart' in g)) g.ontouchstart = null; } catch (e) {}
+
+  function toDomTouches(list) {
+    var out = [];
+    for (var i = 0; i < (list ? list.length : 0); i++) {
+      var t = list[i] || {};
+      var x = (typeof t.clientX === 'number') ? t.clientX : (t.x || 0);
+      var y = (typeof t.clientY === 'number') ? t.clientY : (t.y || 0);
+      out.push({ identifier: (t.identifier === undefined) ? i : t.identifier,
+                 clientX: x, clientY: y, pageX: x, pageY: y, screenX: x, screenY: y });
+    }
+    return out;
+  }
+
+  function dispatch(type, evt) {
+    var changed = (evt && evt.changedTouches && evt.changedTouches.length) ? evt.changedTouches : (evt && evt.touches);
+    var domEvt = {
+      type: type, target: canvas, currentTarget: canvas,
+      changedTouches: toDomTouches(changed),
+      touches: toDomTouches(evt && evt.touches),
+      cancelable: true,
+      preventDefault: function () {}, stopPropagation: function () {},
+    };
+    var arr = handlers[type] || [];
+    for (var i = 0; i < arr.length; i++) {
+      try { arr[i].call(canvas, domEvt); } catch (e) { __log('触摸回调异常(' + type + '): ' + (e && e.message)); }
+    }
+  }
+
+  wx.onTouchStart(function (e) { dispatch('touchstart', e); });
+  wx.onTouchMove(function (e) { dispatch('touchmove', e); });
+  wx.onTouchEnd(function (e) { dispatch('touchend', e); });
+  if (typeof wx.onTouchCancel === 'function') wx.onTouchCancel(function (e) { dispatch('touchcancel', e); });
+  __log('触摸桥: 已把 wx.onTouch* 接到画布事件（虚拟摇杆/按钮可用）');
+}
+
 function setupHostShim() {
   __log('setupHostShim: 开始');
   const canvas = wx.createCanvas();
@@ -282,6 +262,21 @@ function setupHostShim() {
     if (g.window && g.window !== g) {
       try { g.window.innerWidth = sw; g.window.innerHeight = sh; g.window.devicePixelRatio = dpr; } catch (e2) {}
     }
+    // 捕获 WebGL 上下文：自检探针用它读像素，区分「真渲染」和「黑屏空转」
+    try {
+      var origGetContext = canvas.getContext;
+      if (typeof origGetContext === 'function' && !canvas.__dzsgCtxHooked) {
+        canvas.__dzsgCtxHooked = true;
+        canvas.getContext = function (type, attrs) {
+          var c = origGetContext.call(canvas, type, attrs);
+          try {
+            if (c && !g.__DZSG.gl && String(type).indexOf('webgl') !== -1) g.__DZSG.gl = c;
+          } catch (e) {}
+          return c;
+        };
+      }
+    } catch (e) { __log('getContext 钩子失败: ' + (e && e.message)); }
+    g.__DZSG.canvas = canvas;
     // 胶水 updateSize() 会写 canvas.style.width/height；输入法定位用 getBoundingClientRect
     if (!canvas.style) canvas.style = {};
     if (typeof canvas.getBoundingClientRect !== 'function') {
@@ -291,6 +286,14 @@ function setupHostShim() {
     }
     __log('setupHostShim: 显示垫片 innerWidth=' + sw + ' innerHeight=' + sh + ' dpr=' + dpr);
   } catch (e) { __log('setupHostShim: 显示垫片失败: ' + (e && e.message)); }
+
+  // 触摸桥：Godot 的 Web 胶水用 canvas.addEventListener('touchstart'...) 收触摸，
+  // 而小游戏的画布是 wx.createCanvas() 造的对象，触摸只能从 wx.onTouchStart 拿。
+  // 若画布没有 addEventListener，就在这里补一套：记录监听器，把 wx 的触摸事件
+  // 转成 DOM 风格事件派发过去。这样虚拟摇杆和招式按钮在微信里才按得动。
+  try {
+    installTouchBridge(canvas);
+  } catch (e) { __log('触摸桥安装失败: ' + (e && e.message)); }
 
   // --- 浏览器全局补齐（胶水边缘路径，缺失即 ReferenceError）-------------------
   // crypto：Emscripten randomFill -> crypto.getRandomValues
@@ -569,68 +572,7 @@ function installWebAssemblyShim() {
     instantiateStreaming: function (responseOrPromise, imports) {
       __log('WebAssembly.instantiateStreaming -> WXWebAssembly.instantiate(' + __WASM_PKG_PATH + ')');
       return WXA.instantiate(__WASM_PKG_PATH, imports).then(function (res) {
-        var inst = (res && res.instance) ? res.instance : res;
-        try {
-          var exp = inst && inst.exports;
-          if (exp) {
-            var keys = Object.keys(exp);
-            __log('WXWebAssembly.instantiate 已解析: exports 数量=' + keys.length + ', pf=' + (typeof exp.pf) + ', rf=' + (typeof exp.rf) + ', sf=' + (typeof exp.sf) + ', of=' + (typeof exp.of));
-            // 关键判别：先调用几个纯 wasm 导出，看 wasm 调用/内存增长是否顺畅。
-            // 若 malloc 也卡住 -> wasm 执行/编译层面有问题（如惰性编译慢）；
-            // 若 malloc 顺畅而 pf 卡住 -> 静态构造函数本身的问题。
-            try {
-              __log('简单导出测试: exp.tf(_malloc)(8) ...');
-              var ta = Date.now();
-              var ptr = exp.tf(8);
-              __log('malloc(8) -> ' + ptr + ', ' + (Date.now() - ta) + 'ms');
-              var tb = Date.now();
-              exp.qf(ptr);
-              __log('free 完成, ' + (Date.now() - tb) + 'ms');
-              // 测试 1：wasm 执行速度（10 万次 malloc/free 循环）
-              var tc = Date.now();
-              var p2;
-              for (var i = 0; i < 100000; i++) { p2 = exp.tf(16); exp.qf(p2); }
-              __log('10万次 malloc/free 耗时: ' + (Date.now() - tc) + 'ms');
-              // 测试 2：直接测试 wasm memory.grow（Godot 静态构造会大量分配，
-              // 跨过 32MB 初始内存时会走 _emscripten_resize_heap -> memory.grow）
-              try {
-                var mem = exp.of;
-                __log('memory.grow 测试: 当前 ' + mem.buffer.byteLength + ' bytes');
-                var td = Date.now();
-                var gr = mem.grow(1024); // +64MB
-                __log('memory.grow(1024页) -> ' + gr + ', ' + (Date.now() - td) + 'ms, 新大小 ' + mem.buffer.byteLength);
-                var te = Date.now();
-                var gr2 = mem.grow(1024);
-                __log('memory.grow 再次 -> ' + gr2 + ', ' + (Date.now() - te) + 'ms, 新大小 ' + mem.buffer.byteLength);
-              } catch (e3) { __log('memory.grow 异常: ' + (e3 && e3.message)); }
-            } catch (e2) { __log('简单导出调用异常: ' + (e2 && e2.message)); }
-            // wasm exports 属性只读且 non-configurable，Proxy 不能返回不同值，
-            // 只能观察读取顺序；pf 是否返回由下面的主动调用来验证
-            var expProxy = new Proxy(exp, {
-              get: function (target, prop) {
-                try { if (typeof prop === 'string' && prop.length <= 4) __log('exports.' + prop + ' 被读取'); } catch (e) {}
-                return target[prop];
-              },
-            });
-            // 主动调用 pf（__wasm_call_ctors）：若卡死，线程阻塞、心跳停止，
-            // 且看不到「pf 返回」日志 -> 坐实静态构造函数死循环
-            try {
-              __log('>>> 主动调用 exp.pf() 开始');
-              var tpf = Date.now();
-              exp.pf();
-              __log('<<< 主动调用 exp.pf() 返回, ' + (Date.now() - tpf) + 'ms');
-            } catch (e4) { __log('主动调用 pf 异常: ' + (e4 && (e4.message || e4))); }
-            var instProxy = {
-              get exports() {
-                __log('>>> instance.exports 被访问（receiveInstance 开始）');
-                return expProxy;
-              },
-            };
-            __log('exports Proxy 已安装（instance 代理就绪）');
-            return { instance: instProxy, module: (res && res.module) || undefined };
-          }
-          __log('WXWebAssembly.instantiate 已解析但拿不到 exports');
-        } catch (e) { __log('exports 代理异常: ' + (e && e.message)); }
+        __log('WXWebAssembly.instantiate 完成');
         return toResult(res);
       }, function (e) {
         __log('WXWebAssembly.instantiate 失败: ' + (e && (e.message || e)));
@@ -672,7 +614,7 @@ function installWebAssemblyShim() {
 // 而 Godot/Emscripten 的 wasm 与 pck 加载全走 fetch。这里用
 // FileSystemManager.readFileSync 读分包内文件 + 纯 JS brotli 解码器解压，
 // 伪造一个够用的 Response（ok/status/arrayBuffer/text）。
-// brotli_loader.js 的职责已折叠进本垫片，不再单独 require。
+// 解压逻辑全部在本垫片内，不再单独 require 解码脚本。
 // --------------------------------------------------------------------------
 function installFetchShim() {
   __log('installFetchShim: 开始');
@@ -986,43 +928,247 @@ function teeConsole() {
  * 做法：给每个音频源在播放时另接一路「源 → 增益 → 扬声器」，把声音直接送出去。
  *       只改本文件（不动 pkg_engine/index.js），所以重新从 Godot 导出 Web 包也不会丢。
  *
- * 代价：运行时的混音台音量 / 淡入淡出不再生效，每个声音按原始文件电平播放。
- *       听感实测正常；若将来微信侧修好了这条链，把 g.__dzsgAudioBypass 设为 0
- *       即可关闭本旁路。
+ * 音量：旁路增益不是写死的，而是播放时从 source 沿节点图找到「到扬声器」的通路，
+ *       把路上所有 GainNode 的值相乘（= Godot 本来要施加的总音量），
+ *       并每 400ms 重算一次。因此「音乐/音效音量」滑条、BGM 淡入淡出、
+ *       静音全部照常生效（2026-10-21 修复：此前固定 0.5，滑条拖了没反应）。
+ *
+ * 关闭：把 g.__dzsgAudioBypass 设为 0（或删掉整段）即恢复 Godot 原生链路。
  * ========================================================================== */
-var DZSG_AUDIO_BYPASS = 0.5;
+var DZSG_AUDIO_BYPASS = 0.5;   // 兜底增益：算不出链路音量时用它
+
+/* --------------------------------------------------------------------------
+ * 音量跟随：旁路必须复制「Godot 本来要用的音量」。
+ * --------------------------------------------------------------------------
+ * 老版本把每个音源用固定增益 0.5 直连扬声器，于是：
+ *   · 设置里的「音乐音量 / 音效音量」完全失效（滑条怎么拖都一样响）；
+ *   · 单个音效的相对音量（Sfx.play 的 vol_db）也丢了。
+ *
+ * 现在：给 WebAudio 节点图记一份「谁连到谁」的边；播放时从 source 出发 BFS，
+ * 取所有能到扬声器的通路里增益最大的那条，把路上 GainNode 的 gain 相乘。
+ * 每 400ms 对正在播的源重算一次，滑条拖动 / BGM 淡入淡出即时生效。
+ * -------------------------------------------------------------------------- */
+
+function dzsgEnsureGraphHook(ctx) {
+  if (!ctx || g.__dzsgGraphHooked) return true;
+  try {
+    // 注意：createGain / createChannelSplitter 这些方法挂在 BaseAudioContext 原型上，
+    // connect 挂在 AudioNode 原型上。必须沿原型链找到真正持有方法的对象，
+    // 在实例上包会被引擎后续的调用绕过（实测包装会“消失”）。
+    // 必须找「自己拥有」这个方法的原型（hasOwnProperty）。
+    // 只判断 typeof p[name] 会停在 GainNode.prototype 上（connect 是继承来的），
+    // 结果只给 GainNode 打了补丁，ChannelSplitter/Merger 的连线就记不到。
+    function ownerProto(obj, name) {
+      var p = Object.getPrototypeOf(obj);
+      while (p && p !== Object.prototype) {
+        if (Object.prototype.hasOwnProperty.call(p, name) && typeof p[name] === 'function') return p;
+        p = Object.getPrototypeOf(p);
+      }
+      return null;
+    }
+
+    // connect / disconnect 在 AudioNode 原型上
+    var probe = null;
+    try { probe = ctx.createGain(); } catch (e) {}
+    var nodeProto = probe ? ownerProto(probe, 'connect') : null;
+    if (nodeProto) {
+      if (!nodeProto.__dzsgConnectPatched) {
+        nodeProto.__dzsgConnectPatched = true;
+        var origConnect = nodeProto.connect;
+        var origDisconnect = nodeProto.disconnect;
+        nodeProto.connect = function (dest) {
+          var r = origConnect.apply(this, arguments);
+          try {
+            // 连到扬声器的节点打标记。
+            // 注意：微信里 ctx.destination 每次访问可能返回不同包装对象，不能靠 === 判断，
+            // 用构造器名（AudioDestinationNode）识别最稳。
+            if (dest && typeof dest === 'object') {
+              var ctorName = '';
+              try { ctorName = dest.constructor && dest.constructor.name; } catch (e2) {}
+              if (ctorName === 'AudioDestinationNode' ||
+                  (g.__audioCtx && dest === g.__audioCtx.destination)) {
+                this.__dzsgToDest = true;
+              }
+            }
+            if (dest && typeof dest === 'object') {
+              if (!this.__dzsgOut) this.__dzsgOut = [];
+              var outs = this.__dzsgOut;
+              var seen = false;
+              for (var k = 0; k < outs.length; k++) { if (outs[k] === dest) { seen = true; break; } }
+              if (!seen) outs.push(dest);
+            }
+          } catch (e) {}
+          return r;
+        };
+        if (typeof origDisconnect === 'function') {
+          nodeProto.disconnect = function () {
+            try { this.__dzsgOut = []; } catch (e) {}
+            return origDisconnect.apply(this, arguments);
+          };
+        }
+      }
+    }
+    g.__dzsgGraphHooked = true;
+    return true;
+  } catch (e) {
+    __log('🔊修复: 节点图 hook 安装失败 ' + (e && e.message));
+    return false;
+  }
+}
+
+/* 从 source 到 destination 的增益乘积。
+ * 用「最大增益路径」而不是最短路径：Godot 的样本总线是
+ * splitter → 6 个声道增益(L/R/SL/SR/C/LFE) → merger，
+ * 单声道音效只有 L 那路非零，若走最短路径可能先撞上增益为 0 的声道，
+ * 误判成静音。取所有路径里增益最大的那条才是真实听感。
+ * 返回 -1 表示找不到到 destination 的通路。 */
+function dzsgPathGain(src) {
+  var ctx = g.__audioCtx;
+  if (!ctx) return -1;
+  // 微信的 ctx.destination 每次访问可能返回不同的包装对象，不能靠 === 比较。
+  // 所以在 connect 时给「连到扬声器」的节点打 __dzsgToDest 标记，
+  // BFS 走到带标记的节点就收工，取所有通路里增益最大的那条。
+  var best = new Map();
+  var queue = [{ n: src, g: 1.0 }];
+  best.set(src, 1.0);
+  var answer = -1;
+  var guard = 0;
+  while (queue.length && guard++ < 4096) {
+    var cur = queue.shift();
+    var n = cur.n;
+    if (n.__dzsgToDest) {
+      if (cur.g > answer) answer = cur.g;
+      continue;
+    }
+    var outs = n.__dzsgOut;
+    if (!outs) continue;
+    for (var i = 0; i < outs.length; i++) {
+      var nx = outs[i];
+      if (!nx || nx.__dzsgBypass) continue;
+      var gg = cur.g;
+      try {
+        if (nx.gain && typeof nx.gain.value === 'number') gg *= nx.gain.value;
+      } catch (e) {}
+      if (gg < 0) gg = 0;
+      var prev = best.get(nx);
+      if (prev === undefined || gg > prev + 1e-9) {
+        best.set(nx, gg);
+        queue.push({ n: nx, g: gg });
+      }
+    }
+  }
+  return answer;
+}
+
+function dzsgSyncLiveGains() {
+  var live = g.__dzsgLive;
+  if (!live || !live.length) return;
+  // 上限保护：短音效很多，超出就丢掉最旧的并断开，避免节点越积越多
+  while (live.length > 64) {
+    var old = live.shift();
+    try { if (old.gg) old.gg.disconnect(); } catch (e) {}
+  }
+  for (var i = live.length - 1; i >= 0; i--) {
+    var item = live[i];
+    var src = item.src, gg = item.gg;
+    if (!src || !gg) { live.splice(i, 1); continue; }
+    var v = dzsgPathGain(src);
+    if (v < 0) {
+      // 找不到路径 = 源已经播完被断开，直接回收
+      try { gg.disconnect(); } catch (e) {}
+      live.splice(i, 1);
+      continue;
+    }
+    try { gg.gain.value = Math.max(0, Math.min(1, v)); } catch (e) {}
+  }
+}
 
 function installAudioBypass() {
   try {
+    // 只有微信小游戏才需要旁路：普通浏览器里 Godot 的原生链路是正常的，
+    // 再叠一路会变成双份音量。
+    if (typeof wx === 'undefined' || typeof wx.getSystemInfoSync !== 'function') {
+      __log('🔊修复: 非小游戏环境，保持 Godot 原生音频链路');
+      return;
+    }
     var AC = null;
     try { AC = g.AudioContext; } catch (e) {}
     if (!AC && g.window) { try { AC = g.window.AudioContext; } catch (e) {} }
     if (!AC) { __log('🔊修复: 环境无 AudioContext，跳过'); return; }
-    var proto = AC.prototype;
-    if (!proto || typeof proto.createBufferSource !== 'function') {
-      __log('🔊修复: AudioContext.prototype.createBufferSource 不存在，跳过');
-      return;
+    // createBufferSource 在 BaseAudioContext.prototype 上（不是 AudioContext.prototype），
+    // 沿原型链找真正拥有它的对象。这里只走原型、不 new 实例，避免多建一个音频上下文。
+    var proto = null;
+    try {
+      var pp = AC.prototype;
+      while (pp && pp !== Object.prototype) {
+        if (typeof pp.createBufferSource === 'function') { proto = pp; break; }
+        pp = Object.getPrototypeOf(pp);
+      }
+    } catch (e) {}
+    if (!proto) {
+      __log('🔊修复: 找不到 createBufferSource，跳过'); return;
     }
-    if (proto.__dzsgAudioBypass) { __log('🔊修复: 已安装过，跳过'); return; }
-    proto.__dzsgAudioBypass = true;
+    if (g.__dzsgAudioBypassInstalled) { __log('🔊修复: 已安装过，跳过'); return; }
+    g.__dzsgAudioBypassInstalled = true;
     g.__dzsgAudioBypass = DZSG_AUDIO_BYPASS;
+    g.__dzsgLive = g.__dzsgLive || [];
 
+    // 1) 在 AudioContext 创建的那一刻就挂上「节点连线记录」。
+    //    总线节点是在音频初始化时创建的，必须赶在它们 connect 之前 hook 好，
+    //    否则 BFS 找不到总线增益，音量滑条还是会失效。
+    var RealAC = AC;
+    function WrappedAC(opts) {
+      var c = new RealAC(opts);
+      try {
+        if (!g.__audioCtx) { g.__audioCtx = c; dzsgEnsureGraphHook(c); }
+      } catch (e) {}
+      return c;
+    }
+    WrappedAC.prototype = RealAC.prototype;
+    try { Object.defineProperty(WrappedAC, 'name', { value: 'AudioContext' }); } catch (e) {}
+    try { g.AudioContext = WrappedAC; } catch (e) {}
+    if (g.window) { try { g.window.AudioContext = WrappedAC; } catch (e) {} }
+    // 若上下文已经建好（理论上不会），补 hook
+    if (g.__audioCtx) dzsgEnsureGraphHook(g.__audioCtx);
+
+    // 3) 每个音源播放时另接一路 源 → 增益(跟随总线音量) → 扬声器
     var origCreate = proto.createBufferSource;
     proto.createBufferSource = function () {
       var node = origCreate.apply(this, arguments);
       try {
-        if (!g.__audioCtx) g.__audioCtx = this;
+        if (!g.__audioCtx) { g.__audioCtx = this; dzsgEnsureGraphHook(this); }
         var ctx = g.__audioCtx;
+        if (g.__dzsgGainTimer === undefined) {
+          g.__dzsgGainTimer = setInterval(dzsgSyncLiveGains, 400);
+        }
         var origStart = node.start;
         node.start = function () {
           try {
-            var gain = g.__dzsgAudioBypass;
-            if (gain > 0 && !node.__dzsgBypassed) {
+            if (!node.__dzsgBypassed && g.__dzsgAudioBypass > 0) {
               node.__dzsgBypassed = true;
               var gg = ctx.createGain();
-              gg.gain.value = gain;
+              gg.__dzsgBypass = true;
+              var v = dzsgPathGain(node);
+              if (v < 0) v = DZSG_AUDIO_BYPASS;   // 找不到总线时用兜底增益
+              gg.gain.value = Math.max(0, Math.min(1, v));
               node.connect(gg);
               gg.connect(ctx.destination);
+              var item = { src: node, gg: gg };
+              g.__dzsgLive.push(item);
+              // 播完 / 停止 / 被显式断开时立刻回收旁路，避免节点堆积
+              var cleanup = function () {
+                try {
+                  var idx = g.__dzsgLive.indexOf(item);
+                  if (idx >= 0) g.__dzsgLive.splice(idx, 1);
+                  gg.disconnect();
+                } catch (e) {}
+              };
+              try { node.addEventListener('ended', cleanup); } catch (eA) { try { node.onended = cleanup; } catch (eB) {} }
+              var origStop = node.stop;
+              node.stop = function () {
+                cleanup();
+                return origStop.apply(node, arguments);
+              };
             }
           } catch (e) {}
           return origStart.apply(node, arguments);
@@ -1030,12 +1176,12 @@ function installAudioBypass() {
       } catch (e) {}
       return node;
     };
-    __log('🔊修复: 已启用「音频源直连扬声器」旁路 (增益 ' + DZSG_AUDIO_BYPASS + ')');
+    __log('🔊修复: 已启用「音频源直连扬声器」旁路（音量跟随总线，滑条/淡入淡出/静音均生效）');
   } catch (e) { __log('🔊修复: 安装异常 ' + (e && e.message)); }
 }
 
 function boot() {
-  __log('boot() 进入');
+  __logNow('boot() 进入');
   teeConsole();
   let canvas;
   try {
@@ -1045,6 +1191,7 @@ function boot() {
     throw e;
   }
   g.__DZSG.log('宿主垫片就绪, 画布', canvas.width + 'x' + canvas.height);
+  installFrameProbe();
   installAudioBypass();
 
   try {
@@ -1126,7 +1273,7 @@ function boot() {
         canvasResizePolicy: 2,
         executable: 'index',
         args: [],
-        fileSizes: { 'index.pck': 10434340, 'index.wasm': 39514754 },
+        fileSizes: { 'index.pck': 11095976, 'index.wasm': 39514754 },
         focusCanvas: false,
         emscriptenPoolSize: 0,
         godotPoolSize: 0,
@@ -1158,7 +1305,7 @@ function boot() {
         },
       }).then(function () {
         g.__DZSG.log('✅ 引擎启动完成，游戏运行中');
-        __log('===== 引擎启动完成 =====');
+        __logNow('===== 引擎启动完成 =====');
       }).catch(function (e) {
         g.__DZSG.error('❌ 引擎启动失败:', (e && (e.message || e)) || e);
         __log('startGame reject: ' + (e && (e.stack || e.message) || e));

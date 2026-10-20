@@ -51,6 +51,8 @@ func _ready() -> void:
 	_load_fonts()
 	touch_ui = OS.has_feature("web") or OS.has_feature("mobile") or DisplayServer.is_touchscreen_available() \
 		or "--touch" in OS.get_cmdline_user_args()
+	# 一行启动自检：确认当前跑的是触屏形态（微信小游戏 / 手机）
+	print("DZSG 运行形态: touch_ui=", touch_ui, " web=", OS.has_feature("web"), " mobile=", OS.has_feature("mobile"))
 
 
 ## 当前画面的设计尺寸。高度固定 1080，全面屏手机上宽度会大于 1920

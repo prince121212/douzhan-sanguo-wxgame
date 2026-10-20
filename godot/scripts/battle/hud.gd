@@ -104,7 +104,9 @@ func _draw_hud() -> void:
 func _draw_player_hints(c: Control, sz: Vector2, f: Fighter) -> void:
 	var ui: Font = Game.font_ui
 	var since: float = battle.game_time - battle.match_start_time
-	if battle.phase == "fight" and since < 14.0:
+	# 触屏版按钮本身就写着「轻 连招 / 重 按住蓄力 / 挡 拆招 / 闪 闪避」，
+	# 再在屏幕底部铺一条键盘键位说明只会挡住摇杆和按钮，所以触屏下不画。
+	if battle.phase == "fight" and since < 14.0 and not Game.touch_ui:
 		var a: float = clamp((14.0 - since) / 1.5, 0.0, 1.0) * clamp(since / 0.5, 0.0, 1.0)
 		var keys := [["WASD", "移动"], ["J", "轻击"], ["K", "重击·按住蓄力"], ["L", "格挡·看准时机拆招"], ["空格", "闪避·马上按住冲锋"], ["Shift", "疾跑"], ["I", "跳"], ["U", "绝技"], ["Esc", "暂停"]]
 		var x := 0.0
@@ -125,7 +127,7 @@ func _draw_player_hints(c: Control, sz: Vector2, f: Fighter) -> void:
 			x0 += widths[i]
 	if f.rage >= 100.0 and battle.phase == "fight":
 		var blink := 0.55 + 0.45 * sin(t * 7.0)
-		var txt := "按 U 发动绝技「%s」" % f.def["ult"]["name"]
+		var txt := ("点「绝」发动绝技「%s」" if Game.touch_ui else "按 U 发动绝技「%s」") % f.def["ult"]["name"]
 		var font: Font = Game.font_title
 		var w2 := font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 30).x
 		var px := 200.0 if f.side == 0 else sz.x - 200.0 - w2
@@ -325,7 +327,8 @@ func _draw_center(c: Control, sz: Vector2, drop: float) -> void:
 func _draw_ticker(c: Control, sz: Vector2) -> void:
 	var font: Font = Game.font_title
 	var lb: float = battle.cine.letterbox if battle.cine else 0.0
-	var base_y := sz.y - 58.0 - 110.0 * lb
+	# 触屏下右下角是招式按钮，战报要抬高一点免得被压住
+	var base_y := sz.y - 58.0 - 110.0 * lb - (96.0 if Game.touch_ui else 0.0)
 	for idx in ticker.size():
 		var m: Dictionary = ticker[idx]
 		var a: float = clamp(m["t"] / 0.25, 0.0, 1.0) * (1.0 - clamp((m["t"] - 4.5) / 1.0, 0.0, 1.0))

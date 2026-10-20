@@ -82,6 +82,7 @@ static func _react(b: Node, c: Fighter, t: Fighter) -> bool:
 		b.slowmo(0.35, 0.4)
 		b.vfx.stamp(t.head_global() + Vector2(0, -40), "闪!", Color(0.7, 1.0, 0.8), 54)
 		var end: float = b.real_time + 0.36
+		b.prompt_dodge_until = end + 0.25   # 触屏「闪」按钮高亮
 		while b.real_time < end:
 			await b.get_tree().process_frame
 			if Input.is_action_just_pressed("p1_dodge"):

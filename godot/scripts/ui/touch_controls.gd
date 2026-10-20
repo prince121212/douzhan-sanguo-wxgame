@@ -428,6 +428,12 @@ func _self_test() -> void:
 	await _wait(0.6)
 	var vs := canvas.size
 	var f: Fighter = battle.f1
+	# 自检期间让对手停手：否则 AI 正好打过来会把格挡/出招状态打断，测试结果随机飘
+	var enemy: Fighter = battle.f2
+	var enemy_ctrl = enemy.ctrl
+	enemy.ctrl = null
+	f.hp = f.max_hp
+	enemy.hp = enemy.max_hp
 	var results: Array = []
 	var home := Vector2(320.0, vs.y - 300.0)
 	var x0 := f.position.x
@@ -468,6 +474,7 @@ func _self_test() -> void:
 	_fake(0, home, false)
 	await _wait(0.3)
 	results.append(["全部松开后没有残留按键", _down.is_empty() and not Input.is_action_pressed("p1_heavy") and not Input.is_action_pressed("p1_down")])
+	enemy.ctrl = enemy_ctrl
 	var ok := true
 	for r in results:
 		print("TOUCHTEST %s %s" % ["PASS" if r[1] else "FAIL", r[0]])

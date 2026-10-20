@@ -97,9 +97,15 @@ func _ready() -> void:
 		Game.mode = Game.Mode.WATCH
 		Game.goto("select"), 44, 380))
 	menu.add_child(UiKit.button("设　置", _toggle_settings, 44, 380))
-	menu.add_child(UiKit.button("退　出", func(): get_tree().quit(), 44, 380))
+	# 微信小游戏没有"退出游戏"这个概念（退出由平台胶囊按钮负责），
+	# 桌面上才给这个按钮。
+	if not Game.touch_ui:
+		menu.add_child(UiKit.button("退　出", func(): get_tree().quit(), 44, 380))
 	b1.call_deferred("grab_focus")
-	hint_lbl = UiKit.label("WASD 移动 · J 轻击 · K 重击(按住蓄力) · L 格挡/拆招 · 空格 闪避/纵马 · Shift 疾跑 · I 跳 · U 绝技", 24, Color(0.9, 0.82, 0.7, 0.8), false, 4)
+	var hint_text := "左摇杆移动 · 推到底疾跑 · 轻 连招 · 重 按住蓄力 · 挡 看准拆招 · 闪 闪避/纵马 · 绝 绝技"
+	if not Game.touch_ui:
+		hint_text = "WASD 移动 · J 轻击 · K 重击(按住蓄力) · L 格挡/拆招 · 空格 闪避/纵马 · Shift 疾跑 · I 跳 · U 绝技"
+	hint_lbl = UiKit.label(hint_text, 24, Color(0.9, 0.82, 0.7, 0.8), false, 4)
 	hint_lbl.position = Vector2(Game.view_size().x * 0.5 - 560, Game.view_size().y - 80)
 	add_child(hint_lbl)
 	credit_lbl = UiKit.label("音乐：Imperial China Cinematic / The Fall Of Heroes — Shane Ivers (silvermansound.com, CC BY 4.0) · Horde War Drums — William Hector (CC0)", 16, Color(0.85, 0.78, 0.66, 0.6), false, 0)

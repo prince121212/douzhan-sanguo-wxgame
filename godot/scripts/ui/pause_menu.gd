@@ -39,7 +39,10 @@ func _ready() -> void:
 	v.add_child(UiKit.button("回主菜单", func():
 		resume()
 		Game.goto("title"), 38, 520))
-	var help := UiKit.label("移动 WASD　轻击 J　重击 K（按住蓄力）　格挡 L（看准时机按下即拆招）\n闪避 空格（马上按住空格纵马冲锋）　疾跑 Shift　跳跃 I　绝技 U\n观战：F 调速　Tab 隐藏界面", 22, Color(0.9, 0.85, 0.75), false, 4)
+	var help_text := "左摇杆移动（推到底疾跑）　轻 连招　重 按住蓄力　挡 看准时机拆招\n闪 闪避（马上按住纵马冲锋）　跳 跳跃　绝 怒气满放绝技"
+	if not Game.touch_ui:
+		help_text = "移动 WASD　轻击 J　重击 K（按住蓄力）　格挡 L（看准时机按下即拆招）\n闪避 空格（马上按住空格纵马冲锋）　疾跑 Shift　跳跃 I　绝技 U\n观战：F 调速　Tab 隐藏界面"
+	var help := UiKit.label(help_text, 22, Color(0.9, 0.85, 0.75), false, 4)
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(help)
 

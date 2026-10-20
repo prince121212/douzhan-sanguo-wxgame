@@ -503,4 +503,5 @@ func _draw_clash(c: Control, sz: Vector2) -> void:
 	_text_center(c, Game.font_brush, "拼刀 · 角力", Vector2(cx, y - 48), 60, Color(1, 0.88, 0.5, vis), 10, Color(0.1, 0.02, 0.0, vis), 8.0)
 	if clash["player"] >= 0:
 		var blink := 0.5 + 0.5 * sin(k * 18.0)
-		_text_center(c, Game.font_ui, "连按 J / K 角力！", Vector2(cx, y + 64), 30, Color(1, 1, 1, vis * (0.6 + 0.4 * blink)), 6, Color(0, 0, 0, vis))
+		var mash_hint := "连按「轻」「重」角力！" if Game.touch_ui else "连按 J / K 角力！"
+		_text_center(c, Game.font_ui, mash_hint, Vector2(cx, y + 64), 30, Color(1, 1, 1, vis * (0.6 + 0.4 * blink)), 6, Color(0, 0, 0, vis))
