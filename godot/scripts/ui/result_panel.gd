@@ -30,7 +30,9 @@ func _ready() -> void:
 	create_tween().set_ignore_time_scale(true).tween_property(shade, "color:a", 0.5, 0.6)
 	# 胜者大印
 	var seal := Control.new()
-	seal.position = Vector2(560, 300)
+	var ox := Game.ui_offset_x()
+	var oy := Game.ui_offset_y()
+	seal.position = Vector2(560 + ox, 300 + oy)
 	seal.draw.connect(func():
 		seal.draw_circle(Vector2.ZERO, 150.0, Color(0.6, 0.06, 0.04, 0.95))
 		seal.draw_arc(Vector2.ZERO, 150.0, 0.0, TAU, 64, UiKit.GOLD, 8.0)
@@ -50,7 +52,7 @@ func _ready() -> void:
 		battle.cam.shake(0.3))
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiKit.panel_style(0.88))
-	box.position = Vector2(760, 170)
+	box.position = Vector2(760 + ox, 170 + oy)
 	box.custom_minimum_size = Vector2(1000, 0)
 	root.add_child(box)
 	var v := VBoxContainer.new()

@@ -12,6 +12,20 @@ var settings_box: PanelContainer
 var title_node: Control
 var motes: CPUParticles2D
 var base_scale := {}
+var _bg_base_pos := Vector2.ZERO
+var hint_lbl: Label
+var credit_lbl: Label
+
+
+## 底图铺满视口：等比放大到完全覆盖，多出的部分居中裁掉。
+## 留 1.06 的余量给推镜位移，避免移动时露边。
+func _cover_bg() -> void:
+	if bg == null or bg.texture == null:
+		return
+	var r := Game.cover_rect(bg.texture.get_size(), 1.06)
+	bg.size = r.size
+	bg.position = r.position
+	_bg_base_pos = r.position
 
 
 func _ready() -> void:
@@ -26,8 +40,8 @@ func _ready() -> void:
 	if ResourceLoader.exists("res://assets/bg/hulaoguan.png"):
 		bg.texture = load("res://assets/bg/hulaoguan.png")
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
-	bg.size = Vector2(1920, 1080) * 1.12
-	bg.position = Vector2(-100, -60)
+	# 铺满视口（宽屏下比 1920 更宽），多出的部分居中裁掉，避免右侧露黑
+	_cover_bg()
 	bg.modulate = Color(0.75, 0.68, 0.62)
 	add_child(bg)
 	# 上下压暗：用渐变贴图，避免一条条色带
@@ -53,7 +67,7 @@ func _ready() -> void:
 	motes.preprocess = 8.0
 	motes.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	motes.emission_rect_extents = Vector2(1000, 560)
-	motes.position = Vector2(960, 540)
+	motes.position = Game.view_size() * 0.5
 	motes.direction = Vector2(1, -0.2)
 	motes.spread = 30.0
 	motes.gravity = Vector2(0, -6)
@@ -63,15 +77,17 @@ func _ready() -> void:
 	motes.scale_amount_max = 4.0
 	motes.color = Color(1.0, 0.85, 0.6, 0.45)
 	add_child(motes)
-	left_spr = _hero(left_id, false, Vector2(330, 1010), 1)
-	right_spr = _hero(right_id, true, Vector2(1590, 1010), -1)
+	# 两侧立像贴着视口边缘站（宽屏下视口比 1920 更宽，不能写死 1590）
+	var vs := Game.view_size()
+	left_spr = _hero(left_id, false, Vector2(330, vs.y - 70), 1)
+	right_spr = _hero(right_id, true, Vector2(vs.x - 330, vs.y - 70), -1)
 	title_node = Control.new()
-	title_node.position = Vector2(960, 300)
+	title_node.position = Vector2(Game.view_size().x * 0.5, 300 + Game.ui_offset_y())
 	title_node.draw.connect(_draw_title)
 	add_child(title_node)
 	menu = VBoxContainer.new()
 	menu.add_theme_constant_override("separation", 14)
-	menu.position = Vector2(960 - 190, 560)
+	menu.position = Vector2(Game.view_size().x * 0.5 - 190, 560 + Game.ui_offset_y())
 	add_child(menu)
 	var b1 := UiKit.button("单挑斗将", func():
 		Game.mode = Game.Mode.DUEL
@@ -83,16 +99,46 @@ func _ready() -> void:
 	menu.add_child(UiKit.button("设　置", _toggle_settings, 44, 380))
 	menu.add_child(UiKit.button("退　出", func(): get_tree().quit(), 44, 380))
 	b1.call_deferred("grab_focus")
-	var hint := UiKit.label("WASD 移动 · J 轻击 · K 重击(按住蓄力) · L 格挡/拆招 · 空格 闪避/纵马 · Shift 疾跑 · I 跳 · U 绝技", 24, Color(0.9, 0.82, 0.7, 0.8), false, 4)
-	hint.position = Vector2(960 - 560, 1000)
-	add_child(hint)
-	var credit := UiKit.label("音乐：Imperial China Cinematic / The Fall Of Heroes — Shane Ivers (silvermansound.com, CC BY 4.0) · Horde War Drums — William Hector (CC0)", 16, Color(0.85, 0.78, 0.66, 0.6), false, 0)
-	credit.position = Vector2(20, 1050)
-	add_child(credit)
+	hint_lbl = UiKit.label("WASD 移动 · J 轻击 · K 重击(按住蓄力) · L 格挡/拆招 · 空格 闪避/纵马 · Shift 疾跑 · I 跳 · U 绝技", 24, Color(0.9, 0.82, 0.7, 0.8), false, 4)
+	hint_lbl.position = Vector2(Game.view_size().x * 0.5 - 560, Game.view_size().y - 80)
+	add_child(hint_lbl)
+	credit_lbl = UiKit.label("音乐：Imperial China Cinematic / The Fall Of Heroes — Shane Ivers (silvermansound.com, CC BY 4.0) · Horde War Drums — William Hector (CC0)", 16, Color(0.85, 0.78, 0.66, 0.6), false, 0)
+	credit_lbl.position = Vector2(20, Game.view_size().y - 30)
+	add_child(credit_lbl)
 	_build_settings()
 	Sfx.stop_all_ambient()
 	Sfx.ambient("wind_amb", true, -22.0)
 	Sfx.play_music("bgm_title", 1.2, -3.0)
+
+
+## 视口尺寸变化（微信 canvas 会异步 resize）时重排，避免仍按旧尺寸排版留下空白
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and is_inside_tree():
+		_layout()
+
+
+func _layout() -> void:
+	var vs := Game.view_size()
+	var oy := Game.ui_offset_y()   # 视口比 16:9 更高时（4:3 横屏）整体下移
+	_cover_bg()
+	if bg:
+		bg.position = _bg_base_pos
+	if motes:
+		motes.position = vs * 0.5
+	if left_spr:
+		left_spr.position = Vector2(330, vs.y - 70)
+	if right_spr:
+		right_spr.position = Vector2(vs.x - 330, vs.y - 70)
+	if title_node:
+		title_node.position = Vector2(vs.x * 0.5, 300 + oy)
+	if menu:
+		menu.position = Vector2(vs.x * 0.5 - 190, 560 + oy)
+	if settings_box:
+		settings_box.position = Vector2(vs.x * 0.5 - 400, 300 + oy)
+	if hint_lbl:
+		hint_lbl.position = Vector2(vs.x * 0.5 - 560, vs.y - 80)
+	if credit_lbl:
+		credit_lbl.position = Vector2(20, vs.y - 30)
 
 
 func _hero(id: String, prefer_mount: bool, pos: Vector2, facing: int) -> Sprite2D:
@@ -170,7 +216,9 @@ func _draw_title() -> void:
 func _process(delta: float) -> void:
 	t += delta
 	var k := sin(t * 0.08)
-	bg.position = Vector2(-100 + k * 60.0, -60 + cos(t * 0.06) * 25.0)
+	if bg:
+		var base := _bg_base_pos
+		bg.position = base + Vector2(k * 60.0, cos(t * 0.06) * 25.0)
 	for s in [left_spr, right_spr]:
 		if s:
 			var br := sin(t * 2.6 + (0.0 if s == left_spr else 1.5)) * 0.015
@@ -182,7 +230,7 @@ func _process(delta: float) -> void:
 func _build_settings() -> void:
 	settings_box = PanelContainer.new()
 	settings_box.add_theme_stylebox_override("panel", UiKit.panel_style(0.94))
-	settings_box.position = Vector2(560, 300)
+	settings_box.position = Vector2(Game.view_size().x * 0.5 - 400, 300 + Game.ui_offset_y())
 	settings_box.custom_minimum_size = Vector2(800, 0)
 	settings_box.visible = false
 	add_child(settings_box)

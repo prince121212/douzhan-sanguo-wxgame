@@ -64,6 +64,22 @@ func ui_offset_x() -> float:
 	return maxf(0.0, (view_size().x - 1920.0) * 0.5)
 
 
+## 按 1080 高排版的界面居中时要下移的距离（iPad 等 4:3 横屏时视口更高）
+func ui_offset_y() -> float:
+	return maxf(0.0, (view_size().y - 1080.0) * 0.5)
+
+
+## 背景铺满视口：等比放大到完全覆盖，多出的部分居中裁掉。
+## 宽屏（全面屏手机 / 微信小游戏）下视口比 1920 更宽，固定尺寸的底图会露边，
+## 必须用这个算出覆盖矩形，否则两侧会露出清屏底色（看起来是黑边）。
+## overscan > 1 时再多放大一点，留给推镜/视差移动的余量。
+func cover_rect(tex_size: Vector2, overscan := 1.0) -> Rect2:
+	var vs := view_size()
+	var s := maxf(vs.x / tex_size.x, vs.y / tex_size.y) * overscan
+	var sz := tex_size * s
+	return Rect2((vs - sz) * 0.5, sz)
+
+
 func _load_fonts() -> void:
 	# 全部使用 SIL OFL 字体，可随游戏分发
 	var noto := _try_font(["res://assets/fonts/NotoSansSC.ttf"])

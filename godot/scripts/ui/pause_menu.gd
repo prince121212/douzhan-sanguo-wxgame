@@ -19,7 +19,7 @@ func _ready() -> void:
 	root.add_child(shade)
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiKit.panel_style(0.92))
-	box.position = Vector2(660, 200)
+	box.position = Vector2(Game.view_size().x * 0.5 - 300, 200 + Game.ui_offset_y())
 	box.custom_minimum_size = Vector2(600, 0)
 	root.add_child(box)
 	var v := VBoxContainer.new()

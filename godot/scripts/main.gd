@@ -68,10 +68,21 @@ func _ready() -> void:
 
 ## 窗口按屏幕大小自适应：占可用区域约 85%，保持 16:9，居中
 func _fit_window() -> void:
-	if "--resolution" in OS.get_cmdline_args() or DisplayServer.get_name() == "headless":
+	if DisplayServer.get_name() == "headless":
 		return
 	if DisplayServer.window_get_mode() != DisplayServer.WINDOW_MODE_WINDOWED:
 		return
+	# 调试：--winsize=2284x1080 可强制指定窗口尺寸（复现全面屏/微信的宽屏比例）
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--winsize="):
+			var wh := a.substr(10).split("x")
+			if wh.size() == 2:
+				var sz := Vector2i(int(wh[0]), int(wh[1]))
+				DisplayServer.window_set_size(sz)
+				var scr2 := DisplayServer.window_get_current_screen()
+				var usable2 := DisplayServer.screen_get_usable_rect(scr2)
+				DisplayServer.window_set_position(usable2.position + (usable2.size - sz) / 2)
+			return
 	var scr := DisplayServer.window_get_current_screen()
 	var usable := DisplayServer.screen_get_usable_rect(scr)
 	var w := int(usable.size.x * 0.86)

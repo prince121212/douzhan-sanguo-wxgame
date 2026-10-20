@@ -102,8 +102,11 @@ func _follow_frame() -> Array:
 		maxy = max(maxy, f.position.y + 110.0)
 	var w := maxx - minx
 	var hgt := maxy - miny
-	var zx := VIEW.x / w
-	var zy := VIEW.y / hgt
+	# 用真实视口宽高取景，宽屏下才不会把两人拍得过近/过远
+	var vp := Game.view_size()
+	var view := Vector2(maxf(vp.x, VIEW.x), maxf(vp.y, VIEW.y))
+	var zx := view.x / w
+	var zy := view.y / hgt
 	var z: float = clamp(min(zx, zy), ZOOM_WIDE, ZOOM_TIGHT)
 	z *= 1.0 + intensity * 0.06
 	z = min(z, ZOOM_TIGHT)
@@ -112,7 +115,11 @@ func _follow_frame() -> Array:
 
 
 func _clamp_to_map(p: Vector2, z: float) -> Vector2:
-	var half := VIEW / (2.0 * z)
+	# 用真实视口算可见半宽，否则宽屏（全面屏/微信）下会算出偏小的边界，
+	# 镜头会把地图外的区域拉进画面。
+	var vp := Game.view_size()
+	var view := Vector2(maxf(vp.x, VIEW.x), maxf(vp.y, VIEW.y))
+	var half := view / (2.0 * z)
 	var out := p
 	if map_rect.size.x > half.x * 2.0:
 		out.x = clamp(p.x, map_rect.position.x + half.x, map_rect.end.x - half.x)

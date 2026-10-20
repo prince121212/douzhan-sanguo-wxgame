@@ -12,6 +12,10 @@ var round_btns: Array = []
 var rule_btns: Array = []
 var mount_btn: Button
 var start_btn: Button
+var bg_rect: TextureRect
+var head_lbl: Label
+var grid: GridContainer
+var opt_box: VBoxContainer
 
 
 func _ready() -> void:
@@ -19,21 +23,25 @@ func _ready() -> void:
 	picks = [Game.p1_id, Game.p2_id]
 	if picks[0] == picks[1]:
 		picks[1] = "lvbu" if picks[0] != "lvbu" else "zhaoyun"
-	var bg := TextureRect.new()
+	bg_rect = TextureRect.new()
 	if ResourceLoader.exists("res://assets/bg/hulaoguan.png"):
-		bg.texture = load("res://assets/bg/hulaoguan.png")
-	bg.stretch_mode = TextureRect.STRETCH_SCALE
-	bg.size = Vector2(1920, 1080)
-	bg.modulate = Color(0.42, 0.36, 0.32)
-	add_child(bg)
+		bg_rect.texture = load("res://assets/bg/hulaoguan.png")
+	bg_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	# 铺满视口（宽屏下比 1920 更宽），否则右侧会露出清屏底色
+	if bg_rect.texture:
+		var r := Game.cover_rect(bg_rect.texture.get_size())
+		bg_rect.size = r.size
+		bg_rect.position = r.position
+	bg_rect.modulate = Color(0.42, 0.36, 0.32)
+	add_child(bg_rect)
 	var watch := Game.mode == Game.Mode.WATCH
-	var head := UiKit.label("观战 · 虎牢关擂台" if watch else "单挑 · 点将", 64, Color(1.0, 0.85, 0.45), true, 10)
-	head.position = Vector2(960 - 260, 26)
-	head.size = Vector2(520, 80)
-	head.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(head)
+	head_lbl = UiKit.label("观战 · 虎牢关擂台" if watch else "单挑 · 点将", 64, Color(1.0, 0.85, 0.45), true, 10)
+	head_lbl.position = Vector2(Game.view_size().x * 0.5 - 260, 26 + Game.ui_offset_y())
+	head_lbl.size = Vector2(520, 80)
+	head_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(head_lbl)
 	slot_label = UiKit.label("", 34, UiKit.PAPER, true, 6)
-	slot_label.position = Vector2(960 - 400, 112)
+	slot_label.position = Vector2(Game.view_size().x * 0.5 - 400, 112 + Game.ui_offset_y())
 	slot_label.size = Vector2(800, 50)
 	slot_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(slot_label)
@@ -45,11 +53,11 @@ func _ready() -> void:
 
 
 func _build_grid() -> void:
-	var grid := GridContainer.new()
+	grid = GridContainer.new()
 	grid.columns = 5
 	grid.add_theme_constant_override("h_separation", 14)
 	grid.add_theme_constant_override("v_separation", 14)
-	grid.position = Vector2(960 - (5 * 140 + 4 * 14) * 0.5, 190)
+	grid.position = Vector2(Game.view_size().x * 0.5 - (5 * 140 + 4 * 14) * 0.5, 190 + Game.ui_offset_y())
 	add_child(grid)
 	var first: Button = null
 	for id in Roster.ids():
@@ -116,7 +124,7 @@ func _draw_card_tag(c: Control, id: String) -> void:
 func _build_previews() -> void:
 	for s in 2:
 		var root := Control.new()
-		root.position = Vector2(40 if s == 0 else 1920 - 40 - 520, 150)
+		root.position = Vector2(40 if s == 0 else Game.view_size().x - 40 - 520, 150 + Game.ui_offset_y())
 		root.size = Vector2(520, 900)
 		add_child(root)
 		var panel := Panel.new()
@@ -176,9 +184,10 @@ func _draw_stats(c: Control, s: int) -> void:
 
 func _build_options(watch: bool) -> void:
 	var box := VBoxContainer.new()
-	box.position = Vector2(960 - 330, 600)
+	box.position = Vector2(Game.view_size().x * 0.5 - 330, 600 + Game.ui_offset_y())
 	box.add_theme_constant_override("separation", 12)
 	add_child(box)
+	opt_box = box
 	if watch:
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 12)
@@ -291,6 +300,32 @@ func _refresh() -> void:
 	for r in rule_btns:
 		r[1].modulate = Color(1, 1, 1) if Game.watch_rule == r[0] else Color(0.6, 0.6, 0.6)
 	mount_btn.text = "开局：骑马出阵" if Game.start_mounted else "开局：步战"
+
+
+## 视口尺寸变化（微信 canvas 异步 resize）时重排
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_RESIZED and is_inside_tree():
+		_layout()
+
+
+func _layout() -> void:
+	var vs := Game.view_size()
+	var oy := Game.ui_offset_y()
+	if bg_rect and bg_rect.texture:
+		var r := Game.cover_rect(bg_rect.texture.get_size())
+		bg_rect.size = r.size
+		bg_rect.position = r.position
+	if head_lbl:
+		head_lbl.position = Vector2(vs.x * 0.5 - 260, 26 + oy)
+	if slot_label:
+		slot_label.position = Vector2(vs.x * 0.5 - 400, 112 + oy)
+	if grid:
+		grid.position = Vector2(vs.x * 0.5 - (5 * 140 + 4 * 14) * 0.5, 190 + oy)
+	if opt_box:
+		opt_box.position = Vector2(vs.x * 0.5 - 330, 600 + oy)
+	for s in previews.size():
+		var root: Control = previews[s]["root"]
+		root.position = Vector2(40 if s == 0 else vs.x - 40 - 520, 150 + oy)
 
 
 func _process(delta: float) -> void:
