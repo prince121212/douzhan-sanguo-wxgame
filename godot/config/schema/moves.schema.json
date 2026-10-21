@@ -1,0 +1,100 @@
+{
+  "_readme": [
+    "招式数据结构定义。每个 config/moves/<weapon>.json 都按本文件校验。",
+    "字段分两类：",
+    "  balance（平衡数值）—— 策划/AI 会调的：dmg / startup / active / recovery / reach / kb / hitstun / guard_dmg / launch / clash / charge",
+    "  feel（手感/特效）—— 只该跟着美术走：vfx / arc / shake / hitstop / tilt_* / sfx_*",
+    "校验器只对 balance 字段查区间；feel 字段改了不算平衡性改动。"
+  ],
+  "type": "object",
+  "required": ["weapon", "stand", "mounted"],
+  "properties": {
+    "weapon": { "type": "string" },
+    "stand": { "$ref": "#/definitions/moveset" },
+    "mounted": { "$ref": "#/definitions/moveset" }
+  },
+  "definitions": {
+    "moveset": {
+      "type": "object",
+      "description": "招式表：键是招式名（l1/l2/l3/launch/heavy/air/run/charge/bash），值是招式定义",
+      "additionalProperties": { "$ref": "#/definitions/move" }
+    },
+    "move": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["startup", "active", "recovery", "dmg"],
+      "properties": {
+        "label": { "type": "string", "description": "招式名（提示文字用）" },
+        "kind": { "type": "string", "enum": ["melee", "projectile"] },
+
+        "startup": { "type": "number", "range": [0.04, 0.6], "tier": "balance", "description": "起手帧（秒）" },
+        "active": { "type": "number", "range": [0.04, 0.35], "tier": "balance", "description": "判定帧（秒）" },
+        "recovery": { "type": "number", "range": [0.12, 0.8], "tier": "balance", "description": "收招帧（秒）" },
+        "dmg": { "type": "number", "range": [10, 200], "tier": "balance", "description": "基础伤害（再乘武力/统率）" },
+        "hits": { "type": "integer", "range": [1, 5], "tier": "balance", "description": "命中段数" },
+        "reach": { "type": "number", "range": [80, 300], "tier": "balance", "description": "攻击距离（世界像素）" },
+        "back": { "type": "number", "range": [0, 120], "tier": "balance", "description": "背后判定范围" },
+        "depth": { "type": "number", "range": [20, 120], "tier": "balance", "description": "纵深判定范围" },
+        "height": { "type": "number", "range": [40, 260], "tier": "balance", "description": "高度判定范围" },
+        "lunge": { "type": "number", "range": [0, 260], "tier": "balance", "description": "前冲距离" },
+        "lunge_startup": { "type": "number", "range": [0, 0.3], "tier": "feel" },
+        "hitstun": { "type": "number", "range": [0.1, 1.2], "tier": "balance", "description": "命中硬直（秒）" },
+        "kb": { "type": "number", "range": [0, 900], "tier": "balance", "description": "击退速度" },
+        "launch": { "type": "number", "range": [0, 1000], "tier": "balance", "description": "浮空初速" },
+        "guard_dmg": { "type": "number", "range": [0, 120], "tier": "balance", "description": "格挡时削减的耐力" },
+        "chip": { "type": "number", "range": [0, 0.5], "tier": "balance", "description": "格挡穿透伤害比例" },
+        "breaks_guard": { "type": "boolean", "tier": "balance", "description": "是否破防" },
+        "armor": { "type": "boolean", "tier": "balance", "description": "是否霸体（出招中不被打断）" },
+        "clash": { "type": "integer", "range": [0, 3], "tier": "balance", "description": "拼刀等级（0=不拼刀）" },
+        "next": { "type": "string", "tier": "balance", "description": "轻击连段下一招（必须存在于同一招式表）" },
+        "heavy_next": { "type": "string", "tier": "balance", "description": "重击后接的招（必须存在）" },
+        "cancel": { "type": "number", "range": [0, 0.5], "tier": "balance", "description": "可取消窗口" },
+        "rage": { "type": "number", "range": [0, 3], "tier": "balance", "description": "怒气获取倍率" },
+        "charge": {
+          "type": "object",
+          "tier": "balance",
+          "description": "蓄力参数，空对象 = 不可蓄力",
+          "additionalProperties": false,
+          "properties": {
+            "max": { "type": "number", "range": [0.2, 2.0], "description": "蓄满所需秒数" },
+            "dmg_mult": { "type": "number", "range": [1.0, 3.0], "description": "蓄满伤害倍率" },
+            "reach_add": { "type": "number", "range": [0, 150], "description": "蓄满增加距离" },
+            "launch_at": { "type": "number", "range": [0, 1], "description": "达到该比例即挑飞" },
+            "launch": { "type": "number", "range": [0, 900], "description": "挑飞初速" }
+          }
+        },
+        "projectile": {
+          "type": "object",
+          "tier": "balance",
+          "description": "投射物参数，空对象 = 非远程招式",
+          "additionalProperties": false,
+          "properties": {
+            "speed": { "type": "number", "range": [200, 4000], "description": "飞行速度" },
+            "life": { "type": "number", "range": [0.2, 3.0], "description": "存活秒数" },
+            "pierce": { "type": "boolean", "description": "是否穿透" },
+            "size": { "type": "number", "range": [0.5, 3.0], "description": "视觉/判定缩放" },
+            "kb": { "type": "number", "range": [0, 900], "description": "击退" },
+            "hitstun": { "type": "number", "range": [0.1, 1.2], "description": "硬直" },
+            "gold": { "type": "boolean", "description": "金色特效（满弓）" },
+            "dive": { "type": "number", "range": [0, 1], "description": "下坠系数（跃射）" }
+          }
+        },
+
+        "vfx": { "type": "string", "tier": "feel", "description": "特效类型" },
+        "arc": { "type": "array", "tier": "feel", "description": "刀光角度 [起, 止]" },
+        "sfx_swing": { "type": "string", "tier": "feel", "description": "挥击音效" },
+        "sfx_hit": { "type": "string", "tier": "feel", "description": "命中音效" },
+        "shake": { "type": "number", "range": [0, 1], "tier": "feel", "description": "镜头震动" },
+        "hitstop": { "type": "number", "range": [0, 0.3], "tier": "feel", "description": "顿帧时长" },
+        "zoom_kick": { "type": "number", "range": [0, 0.3], "tier": "feel", "description": "镜头推近" },
+        "tilt_startup": { "type": "number", "tier": "feel", "description": "起手身体倾斜角度" },
+        "tilt_active": { "type": "number", "tier": "feel", "description": "出招身体倾斜角度" },
+        "air": { "type": "boolean", "tier": "feel", "description": "是否空中招式" },
+        "run": { "type": "boolean", "tier": "feel", "description": "是否疾跑招式" },
+        "ground_ring": { "type": "boolean", "tier": "feel" },
+        "pose_startup": { "type": "string", "tier": "feel" },
+        "pose_active": { "type": "string", "tier": "feel" }
+      }
+    }
+  }
+}

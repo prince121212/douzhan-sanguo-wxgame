@@ -1,0 +1,288 @@
+{
+	"_comment": "bow 兵器的招式表。stand=步战，mounted=马战。缺省字段自动取 _defaults.json。",
+	"mounted": {
+		"bash": {
+			"active": 0.11,
+			"arc": [
+				-50.0,
+				40.0
+			],
+			"depth": 50.0,
+			"dmg": 40.0,
+			"kb": 300.0,
+			"label": "马上弓击",
+			"lunge": 20.0,
+			"reach": 150.0,
+			"recovery": 0.28,
+			"startup": 0.14,
+			"vfx": "slash"
+		},
+		"charge": {
+			"active": 0.06,
+			"dmg": 50.0,
+			"kind": "projectile",
+			"label": "驰射",
+			"projectile": {
+				"hitstun": 0.5,
+				"kb": 360.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.3,
+				"speed": 1900.0
+			},
+			"recovery": 0.3,
+			"run": true,
+			"sfx_swing": "bow",
+			"startup": 0.1,
+			"vfx": "none"
+		},
+		"heavy": {
+			"active": 0.08,
+			"charge": {
+				"dmg_mult": 1.9,
+				"launch": 380.0,
+				"launch_at": 0.75,
+				"max": 0.9,
+				"reach_add": 0.0
+			},
+			"clash": 0,
+			"dmg": 88.0,
+			"guard_dmg": 40.0,
+			"kind": "projectile",
+			"label": "满弓",
+			"projectile": {
+				"gold": true,
+				"hitstun": 0.6,
+				"kb": 420.0,
+				"life": 1.0,
+				"pierce": true,
+				"size": 1.5,
+				"speed": 2300.0
+			},
+			"recovery": 0.44,
+			"sfx_swing": "bow",
+			"startup": 0.36,
+			"vfx": "none"
+		},
+		"l1": {
+			"active": 0.06,
+			"cancel": 0.2,
+			"dmg": 38.0,
+			"kind": "projectile",
+			"label": "骑射",
+			"next": "l2",
+			"projectile": {
+				"hitstun": 0.28,
+				"kb": 150.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.0,
+				"speed": 1550.0
+			},
+			"recovery": 0.26,
+			"sfx_swing": "bow",
+			"startup": 0.15,
+			"tilt_active": 2.0,
+			"tilt_startup": -3.0,
+			"vfx": "none"
+		},
+		"l2": {
+			"active": 0.06,
+			"dmg": 42.0,
+			"kind": "projectile",
+			"label": "连射",
+			"projectile": {
+				"hitstun": 0.34,
+				"kb": 220.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.05,
+				"speed": 1600.0
+			},
+			"recovery": 0.32,
+			"sfx_swing": "bow",
+			"startup": 0.13,
+			"tilt_active": 2.0,
+			"tilt_startup": -3.0,
+			"vfx": "none"
+		}
+	},
+	"stand": {
+		"air": {
+			"active": 0.06,
+			"air": true,
+			"dmg": 36.0,
+			"kind": "projectile",
+			"label": "跃射",
+			"projectile": {
+				"dive": 0.35,
+				"hitstun": 0.35,
+				"kb": 200.0,
+				"life": 1.0,
+				"pierce": false,
+				"size": 1.1,
+				"speed": 1600.0
+			},
+			"recovery": 0.2,
+			"sfx_swing": "bow",
+			"startup": 0.1,
+			"vfx": "none"
+		},
+		"bash": {
+			"active": 0.1,
+			"arc": [
+				-50.0,
+				40.0
+			],
+			"depth": 46.0,
+			"dmg": 40.0,
+			"heavy_next": "launch",
+			"hitstun": 0.42,
+			"kb": 400.0,
+			"label": "弓击",
+			"lunge": 24.0,
+			"next": "",
+			"reach": 118.0,
+			"recovery": 0.22,
+			"sfx_hit": "hit_light",
+			"startup": 0.11,
+			"vfx": "slash"
+		},
+		"heavy": {
+			"active": 0.08,
+			"charge": {
+				"dmg_mult": 1.9,
+				"launch": 420.0,
+				"launch_at": 0.75,
+				"max": 0.9,
+				"reach_add": 0.0
+			},
+			"clash": 0,
+			"dmg": 84.0,
+			"guard_dmg": 40.0,
+			"kind": "projectile",
+			"label": "满弓",
+			"projectile": {
+				"gold": true,
+				"hitstun": 0.6,
+				"kb": 420.0,
+				"life": 1.0,
+				"pierce": true,
+				"size": 1.5,
+				"speed": 2300.0
+			},
+			"recovery": 0.44,
+			"sfx_swing": "bow",
+			"startup": 0.34,
+			"tilt_active": 6.0,
+			"tilt_startup": -8.0,
+			"vfx": "none"
+		},
+		"l1": {
+			"active": 0.06,
+			"cancel": 0.2,
+			"dmg": 39.0,
+			"heavy_next": "",
+			"kind": "projectile",
+			"label": "连珠箭",
+			"next": "l2",
+			"projectile": {
+				"hitstun": 0.26,
+				"kb": 140.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.0,
+				"speed": 1500.0
+			},
+			"recovery": 0.24,
+			"sfx_swing": "bow",
+			"startup": 0.15,
+			"tilt_active": 3.0,
+			"tilt_startup": -4.0,
+			"vfx": "none"
+		},
+		"l2": {
+			"active": 0.06,
+			"cancel": 0.2,
+			"dmg": 39.0,
+			"kind": "projectile",
+			"label": "连珠箭",
+			"next": "l3",
+			"projectile": {
+				"hitstun": 0.26,
+				"kb": 140.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.0,
+				"speed": 1550.0
+			},
+			"recovery": 0.26,
+			"sfx_swing": "bow",
+			"startup": 0.12,
+			"tilt_active": 3.0,
+			"tilt_startup": -4.0,
+			"vfx": "none"
+		},
+		"l3": {
+			"active": 0.06,
+			"dmg": 50.0,
+			"kind": "projectile",
+			"label": "三连珠",
+			"projectile": {
+				"hitstun": 0.45,
+				"kb": 300.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.15,
+				"speed": 1700.0
+			},
+			"recovery": 0.36,
+			"sfx_swing": "bow",
+			"startup": 0.14,
+			"tilt_active": 4.0,
+			"tilt_startup": -5.0,
+			"vfx": "none"
+		},
+		"launch": {
+			"active": 0.12,
+			"arc": [
+				60.0,
+				-80.0
+			],
+			"clash": 1,
+			"depth": 44.0,
+			"dmg": 44.0,
+			"hitstop": 0.09,
+			"kb": 260.0,
+			"label": "踢腿",
+			"launch": 520.0,
+			"lunge": 30.0,
+			"reach": 110.0,
+			"recovery": 0.36,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.24,
+			"startup": 0.16,
+			"vfx": "slash_up"
+		},
+		"run": {
+			"active": 0.06,
+			"dmg": 44.0,
+			"kind": "projectile",
+			"label": "回身射",
+			"projectile": {
+				"hitstun": 0.45,
+				"kb": 320.0,
+				"life": 1.1,
+				"pierce": false,
+				"size": 1.2,
+				"speed": 1800.0
+			},
+			"recovery": 0.3,
+			"run": true,
+			"sfx_swing": "bow",
+			"startup": 0.1,
+			"vfx": "none"
+		}
+	},
+	"weapon": "bow"
+}

@@ -7,7 +7,7 @@ const ZOOM_WIDE := 1.18
 const ZOOM_TIGHT := 1.78
 
 var battle: Node
-var map_rect := Rect2(0, 0, 1672, 941)
+var map_rect := Rect2(0, 0, 1672, 941)   # 由 battle 按 arena 配置同步
 var base_pos := Vector2(836, 560)
 var base_zoom := 1.3
 var trauma := 0.0

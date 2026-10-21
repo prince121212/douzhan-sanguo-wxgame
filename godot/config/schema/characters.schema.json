@@ -1,0 +1,108 @@
+{
+  "_readme": [
+    "武将数据结构定义（Schema）。新增武将时必须满足本文件。",
+    "校验：bash _tools/check_config.sh",
+    "约定：字段名一旦定下就不要改；新增字段必须同时更新本文件。",
+    "range 是「合理区间」，超出会报警告——不是硬限制，是防止手滑多打一个 0。"
+  ],
+  "type": "object",
+  "required": ["order", "characters"],
+  "properties": {
+    "order": {
+      "type": "array",
+      "description": "武将 id 的展示顺序（选将界面的排列顺序）。新增武将记得加进来。",
+      "items": { "type": "string" }
+    },
+    "rivalry": {
+      "type": "object",
+      "description": "宿命对决台词，键是 \"A|B\"，值是 A 对 B 说的话。",
+      "additionalProperties": { "type": "string" }
+    },
+    "characters": {
+      "type": "object",
+      "description": "键 = 武将 id（小写英文，和 assets/chars/<id>/ 目录名一致）",
+      "additionalProperties": { "$ref": "#/definitions/character" }
+    }
+  },
+  "definitions": {
+    "character": {
+      "type": "object",
+      "required": ["name", "zi", "home", "call", "epithet", "faction", "weapon", "weapon_name", "horse", "color", "stats", "hp", "ult", "ai", "lines"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "本名，如 赵云" },
+        "zi": { "type": "string", "description": "字，如 子龙" },
+        "home": { "type": "string", "description": "籍贯，如 常山" },
+        "call": { "type": "string", "description": "通报名号，如 常山赵子龙" },
+        "epithet": { "type": "string", "description": "称号，如 一身是胆" },
+        "faction": { "type": "string", "description": "阵营。三国=蜀/魏/吴/群；换主题时可自由改，颜色在 hud.gd 的 FACTION_COLORS 里配。" },
+        "weapon": {
+          "type": "string",
+          "description": "兵器类型，决定用哪套招式表。必须存在 config/moves/<weapon>.json",
+          "enum": ["spear", "glaive", "snake", "cleaver", "dual", "bow", "halberd"]
+        },
+        "weapon_name": { "type": "string", "description": "兵器名，如 龙胆亮银枪" },
+        "horse": { "type": "string", "description": "坐骑名，如 照夜玉狮子" },
+        "color": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "主题色 #RRGGBB（血条、旗子、特效）" },
+        "color2": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "辅色（预留，暂未使用）" },
+        "stats": {
+          "type": "object",
+          "required": ["wu", "tong", "su", "dan"],
+          "additionalProperties": false,
+          "properties": {
+            "wu": { "type": "integer", "range": [60, 100], "description": "武力 → 伤害倍率" },
+            "tong": { "type": "integer", "range": [60, 100], "description": "统率 → 减伤倍率" },
+            "su": { "type": "integer", "range": [60, 100], "description": "速度 → 移速倍率" },
+            "dan": { "type": "integer", "range": [60, 100], "description": "胆识（预留）" }
+          }
+        },
+        "hp": { "type": "integer", "range": [800, 2200], "description": "体力上限" },
+        "size": { "type": "number", "range": [0.8, 1.3], "description": "立绘缩放系数（1.0 = 标准身高 150px）" },
+        "mount_dmg": { "type": "number", "range": [0.8, 1.3], "description": "马战伤害加成，缺省 1.0" },
+        "ult": {
+          "type": "object",
+          "required": ["id", "name", "desc"],
+          "additionalProperties": false,
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "绝技演出脚本 id。必须有对应实现（scripts/battle/ultimates.gd 的 match 分支），否则放不出绝技。",
+              "enum": ["qijin", "tuodao", "nuhou", "tieqi", "luoyi", "eli", "chuanyang", "wushuang", "yicheng"]
+            },
+            "name": { "type": "string", "description": "绝技名，如 七进七出" },
+            "desc": { "type": "string", "description": "绝技说明，选将界面显示" }
+          }
+        },
+        "ai": {
+          "type": "object",
+          "required": ["aggression", "patience", "parry", "dodge", "combo", "jump", "feint", "zone", "honor", "taunt", "ult_style"],
+          "additionalProperties": false,
+          "properties": {
+            "aggression": { "type": "number", "range": [0, 1], "description": "进攻欲望" },
+            "patience": { "type": "number", "range": [0, 1], "description": "等待/游斗倾向" },
+            "parry": { "type": "number", "range": [0, 1], "description": "拆招能力" },
+            "dodge": { "type": "number", "range": [0, 1], "description": "闪避倾向" },
+            "combo": { "type": "number", "range": [0, 1], "description": "连招倾向" },
+            "jump": { "type": "number", "range": [0, 1], "description": "跳跃倾向" },
+            "feint": { "type": "number", "range": [0, 1], "description": "诈败拖刀倾向" },
+            "zone": { "type": "number", "range": [0, 1], "description": "远程/控场倾向" },
+            "honor": { "type": "number", "range": [0, 1], "description": "对手落马时是否下马相陪" },
+            "taunt": { "type": "number", "range": [0, 1], "description": "喊话频率" },
+            "ult_style": { "type": "string", "enum": ["drama", "eager", "finisher"], "description": "绝技使用风格" }
+          }
+        },
+        "lines": {
+          "type": "object",
+          "description": "台词。self/call/ult/honor/unhorsed/low/lose 是字符串；taunt/win 是字符串数组（随机取一条）。",
+          "required": ["self", "call", "taunt", "ult", "win", "lose"],
+          "additionalProperties": {
+            "oneOf": [
+              { "type": "string" },
+              { "type": "array", "items": { "type": "string" } }
+            ]
+          }
+        }
+      }
+    }
+  }
+}

@@ -1273,7 +1273,7 @@ function boot() {
         canvasResizePolicy: 2,
         executable: 'index',
         args: [],
-        fileSizes: { 'index.pck': 11096632, 'index.wasm': 39514754 },
+        fileSizes: { 'index.pck': 11131952, 'index.wasm': 39514754 },
         focusCanvas: false,
         emscriptenPoolSize: 0,
         godotPoolSize: 0,

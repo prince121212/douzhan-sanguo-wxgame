@@ -48,10 +48,15 @@ func _init(fighter: Fighter, lvl: float, show := false) -> void:
 	level = lvl
 	showman = show
 	var li := clampi(int(round(lvl)), 0, 3)
-	reaction = [0.40, 0.29, 0.21, 0.15][li] + randf_range(-0.02, 0.02)
-	parry_skill = p["parry"] * [0.25, 0.55, 0.85, 1.05][li]
-	mistake = [0.28, 0.16, 0.08, 0.03][li]
-	aggression = p["aggression"] * [0.75, 0.9, 1.0, 1.1][li]
+	# 4 档难度曲线来自 config/balance.json → ai_difficulty
+	var d_reaction: Array = Cfg.bal("ai_difficulty.reaction", [0.40, 0.29, 0.21, 0.15])
+	var d_parry: Array = Cfg.bal("ai_difficulty.parry_scale", [0.25, 0.55, 0.85, 1.05])
+	var d_mistake: Array = Cfg.bal("ai_difficulty.mistake", [0.28, 0.16, 0.08, 0.03])
+	var d_aggr: Array = Cfg.bal("ai_difficulty.aggression_scale", [0.75, 0.9, 1.0, 1.1])
+	reaction = float(d_reaction[li]) + randf_range(-0.02, 0.02)
+	parry_skill = p["parry"] * float(d_parry[li])
+	mistake = float(d_mistake[li])
+	aggression = p["aggression"] * float(d_aggr[li])
 	if showman:
 		reaction = 0.2
 		parry_skill = p["parry"] * 0.8

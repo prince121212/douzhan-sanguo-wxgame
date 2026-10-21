@@ -594,7 +594,8 @@ static func _wushuang(b: Node, c: Fighter, t: Fighter) -> void:
 	b.ult_damage(c, t, 0.1, true, 950.0, 820.0)
 	await b.wait(0.55)
 	var pr: Dictionary = b.arena.preset
-	b.post.set_grade(pr["grade"], pr["lift"], pr["vignette"], pr["sat"], pr["contrast"])
+	b.post.set_grade(pr.get("grade", Color.WHITE), pr.get("lift", Color.BLACK),
+		float(pr.get("vignette", 0.25)), float(pr.get("sat", 1.0)), float(pr.get("contrast", 1.0)))
 
 
 # ---------------------------------------------------------------- 徐盛 · 百里疑城

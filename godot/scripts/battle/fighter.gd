@@ -9,8 +9,11 @@ const GRAVITY := 2100.0
 const PARRY_WINDOW := 0.16
 const STAND_HW := 30.0
 const MOUNT_HW := 78.0
-const DODGE_COST := 22.0
-const STAMINA_MAX := 100.0
+# 耐力相关数值来自 config/balance.json（Cfg）。保留常量名，调用点零改动。
+static var DODGE_COST: float:
+	get: return Cfg.bal_float("hp.dodge_cost", 22.0)
+static var STAMINA_MAX: float:
+	get: return Cfg.bal_float("hp.stamina_max", 100.0)
 const SHADER := preload("res://shaders/fighter.gdshader")
 
 signal changed
@@ -378,7 +381,9 @@ func _tick_timers(dt: float) -> void:
 	combo_t -= dt
 	if combo_t <= 0.0 and combo > 0:
 		combo = 0
-	var regen := 18.0 if state in [S.IDLE, S.JUMP] else (4.0 if state == S.GUARD else 8.0)
+	var regen := Cfg.bal_float("hp.stamina_regen_idle", 18.0) if state in [S.IDLE, S.JUMP] \
+		else (Cfg.bal_float("hp.stamina_regen_guard", 4.0) if state == S.GUARD \
+		else Cfg.bal_float("hp.stamina_regen_other", 8.0))
 	if run_held and vel.length() > 200.0:
 		regen = 2.0 if not mounted else 10.0
 	stamina = min(STAMINA_MAX, stamina + regen * dt)
@@ -925,9 +930,9 @@ func take_damage(amount: float, attacker: Fighter, allow_ko: bool = true) -> flo
 	dmg = max(0.0, dmg)
 	hp = max(0.0, hp - dmg)
 	last_hit_time = battle.game_time
-	gain_rage(dmg / max_hp * 92.0)
+	gain_rage(dmg / max_hp * Cfg.bal_float("rage.on_hit_taken_per_hp", 92.0))
 	if attacker:
-		attacker.gain_rage(dmg / max_hp * 66.0)
+		attacker.gain_rage(dmg / max_hp * Cfg.bal_float("rage.on_hit_dealt_per_hp", 66.0))
 		attacker.stats["dmg"] += dmg
 	changed.emit()
 	return dmg

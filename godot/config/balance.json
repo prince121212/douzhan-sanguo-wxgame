@@ -1,0 +1,59 @@
+{
+	"_comment": "全局平衡参数。字段含义见 schema/balance.schema.json。改这里就能全局调手感。",
+	"round": {
+		"time_limit_duel": 180.0,
+		"time_limit_watch": 150.0,
+		"unhorse_hp_ratio": 0.55,
+		"danger_hp_ratio": 0.25,
+		"climax_hp_ratio": 0.35,
+		"low_hp_ratio": 0.25
+	},
+	"hp": {
+		"stamina_max": 100.0,
+		"dodge_cost": 22.0,
+		"stamina_regen_idle": 18.0,
+		"stamina_regen_guard": 4.0,
+		"stamina_regen_other": 8.0
+	},
+	"rage": {
+		"on_hit_taken_per_hp": 92.0,
+		"on_hit_dealt_per_hp": 66.0,
+		"on_block": 2.5,
+		"on_parry": 16.0,
+		"on_pdodge": 9.0,
+		"on_clash_win": 18.0,
+		"on_unhorse": 12.0,
+		"on_round_win": 8.0
+	},
+	"damage": {
+		"variance": 0.06,
+		"counter_bonus": 0.35,
+		"counter_chance": 0.35
+	},
+	"ai_difficulty": {
+		"reaction": [
+			0.4,
+			0.29,
+			0.21,
+			0.15
+		],
+		"parry_scale": [
+			0.25,
+			0.55,
+			0.85,
+			1.05
+		],
+		"mistake": [
+			0.28,
+			0.16,
+			0.08,
+			0.03
+		],
+		"aggression_scale": [
+			0.75,
+			0.9,
+			1.0,
+			1.1
+		]
+	}
+}

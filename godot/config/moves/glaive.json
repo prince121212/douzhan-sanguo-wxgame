@@ -1,0 +1,271 @@
+{
+	"_comment": "glaive 兵器的招式表。stand=步战，mounted=马战。缺省字段自动取 _defaults.json。",
+	"mounted": {
+		"charge": {
+			"active": 0.2,
+			"arc": [
+				-90.0,
+				50.0
+			],
+			"armor": true,
+			"breaks_guard": true,
+			"clash": 3,
+			"depth": 52.0,
+			"dmg": 81.4,
+			"guard_dmg": 60.0,
+			"hitstop": 0.13,
+			"kb": 520.0,
+			"label": "冲锋",
+			"launch": 380.0,
+			"lunge": 0.0,
+			"reach": 210.0,
+			"recovery": 0.46,
+			"run": true,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.45,
+			"startup": 0.1,
+			"tilt_active": 8.0,
+			"vfx": "slash",
+			"zoom_kick": 0.07
+		},
+		"heavy": {
+			"active": 0.15,
+			"arc": [
+				-120.0,
+				60.0
+			],
+			"breaks_guard": true,
+			"charge": {
+				"dmg_mult": 1.55,
+				"launch": 380.0,
+				"launch_at": 0.7,
+				"max": 0.8,
+				"reach_add": 25.0
+			},
+			"clash": 2,
+			"depth": 56.0,
+			"dmg": 101.2,
+			"guard_dmg": 55.0,
+			"hitstop": 0.12,
+			"hitstun": 0.6,
+			"kb": 460.0,
+			"label": "马上重击",
+			"lunge": 30.0,
+			"reach": 205.0,
+			"recovery": 0.5,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.4,
+			"startup": 0.38,
+			"tilt_active": 10.0,
+			"tilt_startup": -12.0,
+			"vfx": "slash",
+			"zoom_kick": 0.06
+		},
+		"l1": {
+			"active": 0.12,
+			"arc": [
+				-70.0,
+				45.0
+			],
+			"depth": 48.0,
+			"dmg": 55.0,
+			"heavy_next": "",
+			"kb": 220.0,
+			"label": "马上斩",
+			"lunge": 16.0,
+			"next": "l2",
+			"reach": 190.0,
+			"recovery": 0.3,
+			"startup": 0.16,
+			"tilt_active": 5.0,
+			"tilt_startup": -6.0,
+			"vfx": "slash"
+		},
+		"l2": {
+			"active": 0.12,
+			"arc": [
+				50.0,
+				-60.0
+			],
+			"depth": 50.0,
+			"dmg": 63.8,
+			"hitstun": 0.45,
+			"kb": 300.0,
+			"label": "回马刀",
+			"lunge": 16.0,
+			"reach": 195.0,
+			"recovery": 0.36,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.2,
+			"startup": 0.16,
+			"tilt_active": -6.0,
+			"tilt_startup": 6.0,
+			"vfx": "slash"
+		}
+	},
+	"stand": {
+		"air": {
+			"active": 0.22,
+			"air": true,
+			"arc": [
+				-120.0,
+				60.0
+			],
+			"depth": 56.0,
+			"dmg": 60.0,
+			"guard_dmg": 40.0,
+			"height": 170.0,
+			"kb": 300.0,
+			"label": "跃斩",
+			"lunge": 40.0,
+			"reach": 150.0,
+			"recovery": 0.24,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.26,
+			"startup": 0.1,
+			"tilt_active": 22.0,
+			"vfx": "slash_down"
+		},
+		"heavy": {
+			"active": 0.15,
+			"arc": [
+				-120.0,
+				70.0
+			],
+			"breaks_guard": true,
+			"charge": {
+				"dmg_mult": 1.65,
+				"launch": 420.0,
+				"launch_at": 0.7,
+				"max": 0.8,
+				"reach_add": 30.0
+			},
+			"clash": 2,
+			"depth": 62.0,
+			"dmg": 98.0,
+			"guard_dmg": 55.0,
+			"hitstop": 0.12,
+			"hitstun": 0.65,
+			"kb": 480.0,
+			"label": "拖刀斩",
+			"lunge": 90.0,
+			"reach": 185.0,
+			"recovery": 0.5,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.4,
+			"startup": 0.4,
+			"tilt_active": 12.0,
+			"tilt_startup": -18.0,
+			"vfx": "slash",
+			"zoom_kick": 0.07
+		},
+		"l1": {
+			"active": 0.12,
+			"arc": [
+				-70.0,
+				40.0
+			],
+			"depth": 54.0,
+			"dmg": 47.0,
+			"heavy_next": "launch",
+			"label": "劈",
+			"lunge": 22.0,
+			"next": "l2",
+			"reach": 150.0,
+			"recovery": 0.25,
+			"startup": 0.14,
+			"tilt_active": 8.0,
+			"tilt_startup": -10.0,
+			"vfx": "slash"
+		},
+		"l2": {
+			"active": 0.12,
+			"arc": [
+				50.0,
+				-60.0
+			],
+			"depth": 54.0,
+			"dmg": 52.0,
+			"heavy_next": "launch",
+			"label": "回斩",
+			"lunge": 22.0,
+			"next": "l3",
+			"reach": 150.0,
+			"recovery": 0.28,
+			"startup": 0.14,
+			"tilt_active": -8.0,
+			"tilt_startup": 6.0,
+			"vfx": "slash"
+		},
+		"l3": {
+			"active": 0.14,
+			"arc": [
+				-110.0,
+				50.0
+			],
+			"clash": 2,
+			"depth": 58.0,
+			"dmg": 82.0,
+			"hitstop": 0.11,
+			"kb": 360.0,
+			"label": "斩月",
+			"launch": 360.0,
+			"lunge": 50.0,
+			"reach": 170.0,
+			"recovery": 0.44,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.34,
+			"startup": 0.24,
+			"tilt_active": 14.0,
+			"tilt_startup": -16.0,
+			"vfx": "slash_down",
+			"zoom_kick": 0.05
+		},
+		"launch": {
+			"active": 0.13,
+			"arc": [
+				70.0,
+				-90.0
+			],
+			"clash": 2,
+			"depth": 56.0,
+			"dmg": 58.0,
+			"guard_dmg": 28.0,
+			"hitstop": 0.1,
+			"kb": 160.0,
+			"label": "撩刀",
+			"launch": 600.0,
+			"lunge": 30.0,
+			"reach": 150.0,
+			"recovery": 0.42,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.3,
+			"startup": 0.22,
+			"tilt_active": -16.0,
+			"tilt_startup": 10.0,
+			"vfx": "slash_up"
+		},
+		"run": {
+			"active": 0.15,
+			"arc": [
+				-80.0,
+				50.0
+			],
+			"clash": 2,
+			"depth": 56.0,
+			"dmg": 64.0,
+			"guard_dmg": 34.0,
+			"kb": 420.0,
+			"label": "奔袭斩",
+			"lunge": 120.0,
+			"reach": 165.0,
+			"recovery": 0.38,
+			"run": true,
+			"sfx_hit": "hit_heavy",
+			"shake": 0.26,
+			"startup": 0.1,
+			"vfx": "slash"
+		}
+	},
+	"weapon": "glaive"
+}

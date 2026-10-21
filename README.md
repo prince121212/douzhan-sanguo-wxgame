@@ -101,12 +101,40 @@ Godot 导出 Web  →  brotli 压缩 wasm/pck  →  拆成微信分包  →  替
 
 资源包余量已不多。若新增武将使 `index.pck.br` 超限，优先压贴图（`_backup/STEP2_OK/build_web_step2` 里有现成的瘦身方案），其次砍立绘走 fallback。
 
+## 数据配置（数据与代码分离）
+
+**所有可变数值都在 `godot/config/` 的 JSON 里，不在代码里。**
+
+```
+godot/config/
+├── balance.json       全局平衡（回合时长 / 落马线 / 怒气 / 伤害浮动 / AI 4 档难度）
+├── characters.json    武将名册（属性 / 血量 / AI 性格 / 台词）
+├── arena.json         战场与时辰光照（换主题只改这里）
+├── moves/*.json       招式表，按兵器分文件（stand 步战 + mounted 马战，稀疏覆盖 _defaults.json）
+└── schema/*.json      数据结构定义（AI 和校验器的共同依据）
+```
+
+改数值只需改 JSON，然后：
+
+```bash
+python3 _tools/check_config.py    # 结构 + 数值区间 + 引用完整性校验
+```
+
+游戏里按 **F9** 可热重载配置，调平衡不用重启。
+
+为什么需要校验器：招式表是「默认值打底 + 配置覆盖」，**字段名拼错会被静默忽略**
+（伤害会悄悄回落到默认值，不报错）。校验器会把它报成「多余字段」。
+
+新增武将 / 换地图主题的完整步骤见 `AGENTS.md`。
+
 ## 代码结构要点
 
 - `godot/scripts/core/game.gd`：全局设置、输入映射、`view_size()` / `cover_rect()` / `ui_offset_y()` 等视口适配工具。
 - `godot/scripts/ui/touch_controls.gd`：虚拟摇杆 + 招式按钮，只把触摸翻译成 `p1_*` 动作，战斗逻辑不用感知触屏。
 - `godot/scripts/battle/battle.gd`：`request_skip()` / `toggle_speed()` / `toggle_hud()` 是触屏层调用的接口；`prompt_dodge_until` 用来给「闪」按钮高亮。
 - `wxgame/game.js`：宿主垫片（canvas/document/fetch/WebAssembly）、触摸桥、音频旁路。**不要改 `pkg_engine/index.js`**，它是 Godot 导出的胶水，重新导出会覆盖。
+- `godot/scripts/core/config.gd`：autoload `Cfg`，唯一负责读 JSON 并把 `#RRGGBB` 转成 `Color`、`float` 转成 `int`。
+- `godot/scripts/core/roster.gd` / `godot/scripts/battle/moves.gd`：薄壳，只做查询，不含数据。
 
 ## 仓库说明
 

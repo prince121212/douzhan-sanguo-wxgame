@@ -1,0 +1,270 @@
+{
+  "_readme": [
+    "全局平衡参数。改这里 = 改整局手感，不需要动代码。",
+    "所有数值都有 range 区间，校验器超范围会报警告（防手滑）。",
+    "标注「待接」的字段目前还写在代码里，接进 Cfg 后生效。"
+  ],
+  "type": "object",
+  "required": [
+    "round",
+    "hp",
+    "rage",
+    "damage",
+    "ai_difficulty"
+  ],
+  "properties": {
+    "round": {
+      "type": "object",
+      "description": "一局的规则",
+      "required": [
+        "time_limit_duel",
+        "time_limit_watch"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "time_limit_duel": {
+          "type": "number",
+          "range": [
+            30,
+            600
+          ],
+          "description": "单挑一局时限（秒）"
+        },
+        "time_limit_watch": {
+          "type": "number",
+          "range": [
+            30,
+            600
+          ],
+          "description": "观战一局时限（秒）"
+        },
+        "unhorse_hp_ratio": {
+          "type": "number",
+          "range": [
+            0.2,
+            0.9
+          ],
+          "description": "体力低于该比例被打落马"
+        },
+        "danger_hp_ratio": {
+          "type": "number",
+          "range": [
+            0.05,
+            0.5
+          ],
+          "description": "低于该比例触发红边/残血播报"
+        },
+        "climax_hp_ratio": {
+          "type": "number",
+          "range": [
+            0.1,
+            0.7
+          ],
+          "description": "低于该比例换成决战音乐"
+        },
+        "low_hp_ratio": {
+          "type": "number",
+          "range": [
+            0.05,
+            0.5
+          ],
+          "description": "结算时判定「残血翻盘」的线"
+        }
+      }
+    },
+    "hp": {
+      "type": "object",
+      "description": "体力/耐力相关",
+      "additionalProperties": false,
+      "properties": {
+        "stamina_max": {
+          "type": "number",
+          "range": [
+            50,
+            300
+          ],
+          "description": "耐力上限"
+        },
+        "dodge_cost": {
+          "type": "number",
+          "range": [
+            5,
+            60
+          ],
+          "description": "闪避消耗耐力"
+        },
+        "stamina_regen_idle": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "待机每秒回耐力"
+        },
+        "stamina_regen_guard": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "格挡中每秒回耐力"
+        },
+        "stamina_regen_other": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "其它状态每秒回耐力"
+        }
+      }
+    },
+    "rage": {
+      "type": "object",
+      "description": "怒气（绝技槽）",
+      "additionalProperties": false,
+      "required": [
+        "on_hit_taken_per_hp",
+        "on_hit_dealt_per_hp",
+        "on_block",
+        "on_parry",
+        "on_pdodge",
+        "on_clash_win",
+        "on_unhorse",
+        "on_round_win"
+      ],
+      "properties": {
+        "on_hit_taken_per_hp": {
+          "type": "number",
+          "range": [
+            0,
+            300
+          ],
+          "description": "自己挨打：每损失 1% 血加多少怒气"
+        },
+        "on_hit_dealt_per_hp": {
+          "type": "number",
+          "range": [
+            0,
+            300
+          ],
+          "description": "打中对手：每打掉 1% 血加多少怒气"
+        },
+        "on_block": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "格挡成功加怒气"
+        },
+        "on_parry": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "拆招成功加怒气"
+        },
+        "on_pdodge": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "完美闪避加怒气"
+        },
+        "on_clash_win": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "拼刀获胜加怒气"
+        },
+        "on_unhorse": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "落马时加怒气"
+        },
+        "on_round_win": {
+          "type": "number",
+          "range": [
+            0,
+            60
+          ],
+          "description": "拼刀弹开后加怒气"
+        }
+      }
+    },
+    "damage": {
+      "type": "object",
+      "description": "伤害计算",
+      "additionalProperties": false,
+      "properties": {
+        "variance": {
+          "type": "number",
+          "range": [
+            0,
+            0.3
+          ],
+          "description": "伤害浮动 ±比例（0.06 = ±6%）"
+        },
+        "counter_bonus": {
+          "type": "number",
+          "range": [
+            0,
+            1
+          ],
+          "description": "拆招后反击的伤害加成比例"
+        },
+        "counter_chance": {
+          "type": "number",
+          "range": [
+            0,
+            1
+          ],
+          "description": "AI 拆招后反击的概率"
+        }
+      }
+    },
+    "ai_difficulty": {
+      "type": "object",
+      "description": "4 档难度（易/中/难/极）的 AI 参数。数组长度必须为 4。",
+      "additionalProperties": false,
+      "properties": {
+        "reaction": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "反应延迟（秒），越小越强"
+        },
+        "parry_scale": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "拆招能力倍率"
+        },
+        "mistake": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "失误率"
+        },
+        "aggression_scale": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "description": "进攻欲望倍率"
+        }
+      }
+    }
+  }
+}

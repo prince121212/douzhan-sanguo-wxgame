@@ -3,7 +3,7 @@ extends Node2D
 
 const Z_MIN := 470.0
 const Z_MAX := 880.0
-const MAP_RECT := Rect2(0, 0, 1672, 941)
+var map_rect := Rect2(0, 0, 1672, 941)   # 由 arena 配置决定，_build 里赋值
 const ArrowFx := preload("res://scripts/battle/fx/arrow.gd")
 const ResultPanel := preload("res://scripts/ui/result_panel.gd")
 const PauseMenu := preload("res://scripts/ui/pause_menu.gd")
@@ -28,7 +28,7 @@ var projectiles: Array = []
 var phase := "intro"           # intro / fight / cine / ko / result
 var game_time := 0.0
 var real_time := 0.0
-var time_left := 180.0
+var time_left := 180.0   # 实际值在 _start_bout 里按 Cfg 设置
 var round_count := 0
 var last_round_t := -10.0
 var wins := [0, 0]
@@ -74,7 +74,7 @@ func _ready() -> void:
 	for a in OS.get_cmdline_user_args():
 		if a.begins_with("--preset="):
 			preset_key = a.substr(9)
-	time_left = 180.0 if player_side >= 0 else 150.0
+	time_left = Cfg.bal_float("round.time_limit_duel", 180.0) if player_side >= 0 else Cfg.bal_float("round.time_limit_watch", 150.0)
 	_build()
 	_spawn_fighters()
 	Sfx.recorder = _rec_sfx
@@ -107,15 +107,19 @@ func _build() -> void:
 	world.add_child(vfx)
 	vfx.ground_layer = ground_layer
 	arena.build(self, actors, preset_key)
+	map_rect = Rect2(Vector2.ZERO, arena.map_size)
 	cam = Camera2D.new()
 	cam.set_script(preload("res://scripts/battle/camera_director.gd"))
 	cam.battle = self
+	cam.map_rect = map_rect
+	cam.base_pos = map_rect.get_center()
 	world.add_child(cam)
 	post = CanvasLayer.new()
 	post.set_script(preload("res://scripts/battle/post_fx.gd"))
 	add_child(post)
 	var pr: Dictionary = arena.preset
-	post.set_grade(pr["grade"], pr["lift"], pr["vignette"], pr["sat"], pr["contrast"])
+	post.set_grade(pr.get("grade", Color.WHITE), pr.get("lift", Color.BLACK),
+		float(pr.get("vignette", 0.25)), float(pr.get("sat", 1.0)), float(pr.get("contrast", 1.0)))
 	if "--nopost" in OS.get_cmdline_user_args():
 		post.visible = false
 	hud = CanvasLayer.new()
@@ -211,7 +215,7 @@ func _start_bout(first: bool) -> void:
 		f.state = Fighter.S.SCRIPTED
 		f.set_pose("idle")
 	low_announced = [false, false]
-	time_left = 180.0 if player_side >= 0 else 150.0
+	time_left = Cfg.bal_float("round.time_limit_duel", 180.0) if player_side >= 0 else Cfg.bal_float("round.time_limit_watch", 150.0)
 	round_count = 0
 	first_blood = false
 	lead_rounds_announced = 0
@@ -220,7 +224,7 @@ func _start_bout(first: bool) -> void:
 	post.set_danger(1, 0.0)
 	bounds_on = false
 	f1.position = Vector2(-160, 690)
-	f2.position = Vector2(MAP_RECT.size.x + 160, 690)
+	f2.position = Vector2(map_rect.size.x + 160, 690)
 	f1.facing = 1
 	f2.facing = -1
 	if Game.sim:
@@ -261,19 +265,21 @@ func _intro_full() -> void:
 	Sfx.play_music("bgm_title", 1.0, -3.0)
 	post.ink = 1.0
 	post.set_ink(0.0)
-	cam.cut(Vector2(836, 272), 2.0)
-	cam.shot(Vector2(836, 290), 2.05, 2.2, 1.0)
+	var mid := map_rect.get_center()
+	cam.cut(Vector2(mid.x, map_rect.position.y + map_rect.size.y * 0.29), 2.0)
+	cam.shot(Vector2(mid.x, map_rect.position.y + map_rect.size.y * 0.31), 2.05, 2.2, 1.0)
 	var pr: Dictionary = arena.preset
-	var sub := "%s · 虎牢关前" % pr["name"]
+	var place: String = arena.arena_def.get("name", "虎牢关")
+	var sub := "%s · %s前" % [pr.get("name", ""), place]
 	if f1.id == "lvbu" or f2.id == "lvbu":
-		sub = "%s · 虎牢关前，飞将横戟" % pr["name"]
-	cine.show_title("虎牢关", sub, 2.6)
+		sub = "%s · %s前，飞将横戟" % [pr.get("name", ""), place]
+	cine.show_title(place, sub, 2.6)
 	Sfx.play("drum", -2.0, 0.8)
 	if await _wait_skip(1.7):
 		await _skip_to_fight()
 		return
 	# 镜头下摇到斗将台，两将纵马入场
-	cam.shot(Vector2(836, 600), 1.22, 3.4, 1.4)
+	cam.shot(Vector2(mid.x, map_rect.position.y + map_rect.size.y * 0.64), 1.22, 3.4, 1.4)
 	var drv1 := IntroDriver.new(Vector2(590, 690), true)
 	var drv2 := IntroDriver.new(Vector2(1082, 690), true)
 	for f in fighters:
@@ -332,8 +338,9 @@ func _intro_arena() -> void:
 	post.set_ink(0.0)
 	var champ := f1 if f1.id == Game.champion_id else f2
 	var chall := f2 if champ == f1 else f1
-	cam.cut(Vector2(836, 600), 1.25)
-	cam.shot(Vector2(836, 600), 1.25, 3.0, 1.4)
+	var mid2 := map_rect.get_center()
+	cam.cut(Vector2(mid2.x, map_rect.position.y + map_rect.size.y * 0.64), 1.25)
+	cam.shot(Vector2(mid2.x, map_rect.position.y + map_rect.size.y * 0.64), 1.25, 3.0, 1.4)
 	for f in fighters:
 		f.set_scripted(false)
 	f1.ctrl = IntroDriver.new(Vector2(590, 690), true)
@@ -464,8 +471,9 @@ func _process(delta: float) -> void:
 		for i in 2:
 			var f: Fighter = fighters[i]
 			var r := f.hp / f.max_hp
-			post.set_danger(i, 0.7 if r < 0.25 and f.is_alive() else 0.0)
-			if r < 0.25 and not low_announced[i] and f.is_alive():
+			var danger_r := Cfg.bal_float("round.danger_hp_ratio", 0.25)
+			post.set_danger(i, 0.7 if r < danger_r and f.is_alive() else 0.0)
+			if r < danger_r and not low_announced[i] and f.is_alive():
 				low_announced[i] = true
 				narrate("%s已是强弩之末！" % f.def["name"], 1)
 				say(f, Roster.line(f.id, "low"), 1.6)
@@ -484,7 +492,7 @@ func _process(delta: float) -> void:
 				f.glow = 0.9
 				f.glow_col = Color(1.0, 0.75, 0.25)
 				Sfx.play("rage", -4.0)
-		if not climax_music and min(f1.hp / f1.max_hp, f2.hp / f2.max_hp) < 0.35:
+		if not climax_music and min(f1.hp / f1.max_hp, f2.hp / f2.max_hp) < Cfg.bal_float("round.climax_hp_ratio", 0.35):
 			climax_music = true
 			Sfx.play_music("bgm_climax", 2.5, -3.0)
 	if autoplay_next_t > 0.0:
@@ -913,7 +921,8 @@ func _contact_point(a: Fighter, d: Fighter) -> Vector2:
 
 func _hit(a: Fighter, d: Fighter, mv: Dictionary, _idx: int, armored: bool, proj := {}) -> void:
 	var ratio := a.charge_ratio if proj.is_empty() else float(proj.get("charge", 0.0))
-	var mult: float = a.power * d.defense * randf_range(0.94, 1.06)
+	var v := Cfg.bal_float("damage.variance", 0.06)
+	var mult: float = a.power * d.defense * randf_range(1.0 - v, 1.0 + v)
 	var ch: Dictionary = mv["charge"]
 	if not ch.is_empty():
 		mult *= lerp(1.0, float(ch["dmg_mult"]), ratio)
@@ -1010,7 +1019,7 @@ func _hit(a: Fighter, d: Fighter, mv: Dictionary, _idx: int, armored: bool, proj
 		narrate("%s连出四招，%s只有招架之功！" % [a.def["name"], d.def["name"]], 0)
 	elif a.combo == 7:
 		narrate("%s攻势如潮，已连击七下！" % a.def["name"], 1)
-	if counter and randf() < 0.35:
+	if counter and randf() < Cfg.bal_float("damage.counter_chance", 0.35):
 		narrate("%s抓住破绽，破招！" % a.def["name"], 0)
 	if a.hp / a.max_hp < 0.3 and dealt > d.max_hp * 0.07:
 		narrate("%s绝地反击！" % a.def["name"], 1)
@@ -1025,14 +1034,15 @@ func _hit(a: Fighter, d: Fighter, mv: Dictionary, _idx: int, armored: bool, proj
 		on_ko(d, a, mv)
 		return
 	# 落马
-	if d.mounted and d.can_unhorse and not d.unhorsed and d.hp / d.max_hp < 0.55 and phase == "fight":
+	var unhorse_r := Cfg.bal_float("round.unhorse_hp_ratio", 0.55)
+	if d.mounted and d.can_unhorse and not d.unhorsed and d.hp / d.max_hp < unhorse_r and phase == "fight":
 		_unhorse(d, a)
-	elif d.mounted and not d.can_unhorse and not d.unhorsed and d.hp / d.max_hp < 0.55 and phase == "fight":
+	elif d.mounted and not d.can_unhorse and not d.unhorsed and d.hp / d.max_hp < unhorse_r and phase == "fight":
 		# 没有步战形象的武将：坐骑受惊嘶鸣，人马更凶
 		d.unhorsed = true
 		Sfx.play("horse_neigh", -2.0)
 		say(d, "赤兔！随我杀！" if d.id == "lvbu" else "驾！", 1.6)
-		d.gain_rage(12.0)
+		d.gain_rage(Cfg.bal_float("rage.on_unhorse", 12.0))
 		narrate("%s的坐骑一声长嘶，人马更凶！" % d.def["name"], 1)
 
 
@@ -1064,14 +1074,14 @@ func _block(a: Fighter, d: Fighter, mv: Dictionary) -> void:
 	d.freeze = 0.05
 	vfx.block_spark(cp, d.theme_color.lerp(Color(1, 0.85, 0.4), 0.6))
 	cam.shake(0.08)
-	d.gain_rage(2.5)
+	d.gain_rage(Cfg.bal_float("rage.on_block", 2.5))
 	Sfx.play("clang", -5.0, randf_range(0.95, 1.15))
 
 
 func _parry(a: Fighter, d: Fighter, _mv: Dictionary) -> void:
 	ev("parry")
 	d.stats["parries"] += 1
-	d.gain_rage(16.0)
+	d.gain_rage(Cfg.bal_float("rage.on_parry", 16.0))
 	d.counter_ready = 0.75
 	a.apply_parried(d)
 	d._to_idle()
@@ -1096,7 +1106,7 @@ func _parry(a: Fighter, d: Fighter, _mv: Dictionary) -> void:
 func _perfect_dodge(d: Fighter, a: Fighter) -> void:
 	ev("pdodge")
 	d.stats["dodges"] += 1
-	d.gain_rage(9.0)
+	d.gain_rage(Cfg.bal_float("rage.on_pdodge", 9.0))
 	slowmo(0.35, 0.3)
 	vfx.stamp(d.head_global(), "闪", Color(0.7, 1.0, 0.8), 70)
 	vfx.afterimage(d, Color(0.6, 1.0, 0.8), 0.45, 0.7)
@@ -1213,7 +1223,7 @@ func _lock_clash(a: Fighter, b: Fighter) -> void:
 		loser = right
 	if winner:
 		winner.stats["clash_win"] += 1
-		winner.gain_rage(18.0)
+		winner.gain_rage(Cfg.bal_float("rage.on_clash_win", 18.0))
 		winner.state = Fighter.S.IDLE
 		winner.set_pose("attack")
 		loser.apply_guard_break(winner)
@@ -1236,7 +1246,7 @@ func _lock_clash(a: Fighter, b: Fighter) -> void:
 			f.hitstun_t = 0.35
 			f.vel.x = (-1.0 if f == left else 1.0) * 380.0
 			f.set_pose("hurt")
-			f.gain_rage(8.0)
+			f.gain_rage(Cfg.bal_float("rage.on_round_win", 8.0))
 		vfx.clash_spark(contact, true)
 		Sfx.play("clang", 2.0, 0.9)
 		cam.shake(0.3)
@@ -1467,7 +1477,7 @@ func _update_projectiles(_dt: float) -> void:
 					a.vx = -a.vx * 0.25
 					a.vh = 700.0
 					d.stats["parries"] += 1
-					d.gain_rage(12.0)
+					d.gain_rage(Cfg.bal_float("rage.on_unhorse", 12.0))
 					d.counter_ready = 0.6
 					vfx.block_spark(pos, Color(0.7, 0.95, 1.0))
 					vfx.stamp(d.head_global(), "拨箭", Color(0.6, 0.95, 1.0), 60)

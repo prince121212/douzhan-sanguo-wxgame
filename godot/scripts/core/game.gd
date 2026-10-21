@@ -14,6 +14,7 @@ var p2_id := "lvbu"
 var difficulty := 1            # 0 易 1 中 2 难 3 极
 var rounds_to_win := 1         # 1 = 一局定胜负，2 = 三局两胜
 var watch_rule := "arena"      # arena 擂台车轮战 / random 随机对决
+var arena_id := ""             # 战场 id（空 = 用 config/arena.json 里的 default）
 var start_mounted := true
 
 # 擂台战绩（观战模式里擂主连胜）
@@ -114,6 +115,15 @@ func _try_font(paths: Array) -> Font:
 			if f is Font:
 				return f
 	return null
+
+
+## 开发：F9 热重载配置（调平衡不用重启游戏）
+func _unhandled_key_input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if (event as InputEventKey).keycode == KEY_F9:
+			Cfg.reload()
+			settings_changed.emit()
+			print("Cfg: 已热重载配置")
 
 
 func _setup_input() -> void:

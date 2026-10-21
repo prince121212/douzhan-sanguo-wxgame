@@ -1,0 +1,57 @@
+{
+  "_readme": [
+    "战场（地图 + 时辰光照）定义。换主题时只需新增一个 arena 条目 + 对应贴图。",
+    "MAP_SIZE 是战场逻辑尺寸：角色活动范围、镜头边界、兵卒摆位都按它算。",
+    "换地图时若长宽比变化，兵卒/旗帜的摆位百分比会自动跟着缩放。"
+  ],
+  "type": "object",
+  "required": ["default", "arenas"],
+  "properties": {
+    "default": { "type": "string", "description": "默认战场 id" },
+    "arenas": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/arena" }
+    }
+  },
+  "definitions": {
+    "arena": {
+      "type": "object",
+      "required": ["name", "map", "ground", "size"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "地名，如 虎牢关" },
+        "map": { "type": "string", "description": "底图路径，如 res://assets/bg/hulaoguan.png" },
+        "ground": { "type": "string", "description": "地面图路径（可空字符串 = 无）" },
+        "size": { "type": "array", "items": { "type": "number" }, "description": "[宽, 高] 战场逻辑尺寸" },
+        "ground_scale": { "type": "array", "items": { "type": "number" }, "description": "[宽, 高] 地面图拉伸尺寸，缺省按 size 推算" },
+        "presets": {
+          "type": "object",
+          "description": "时辰光照预设，键是 preset id（chen/wu/you/sha…）",
+          "additionalProperties": { "$ref": "#/definitions/preset" }
+        }
+      }
+    },
+    "preset": {
+      "type": "object",
+      "required": ["name", "map", "haze", "grade", "ray", "dust"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "description": "时辰名，如 午时" },
+        "map": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "地图染色" },
+        "actor": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "角色染色" },
+        "map_sat": { "type": "number", "range": [0, 2] },
+        "map_bright": { "type": "number", "range": [0.5, 1.5] },
+        "haze": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "雾气色" },
+        "grade": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "调色" },
+        "lift": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "暗部提亮" },
+        "vignette": { "type": "number", "range": [0, 1] },
+        "sat": { "type": "number", "range": [0, 2] },
+        "contrast": { "type": "number", "range": [0.5, 1.5] },
+        "ray": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}$", "description": "光束色" },
+        "ray_a": { "type": "number", "range": [0, 1] },
+        "dust": { "type": "string", "pattern": "^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$", "description": "浮尘色（可带 alpha）" },
+        "motes": { "type": "integer", "range": [0, 400], "description": "浮尘粒子数" }
+      }
+    }
+  }
+}

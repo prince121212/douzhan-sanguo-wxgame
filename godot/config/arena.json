@@ -1,0 +1,89 @@
+{
+	"_comment": "战场与时辰光照。字段含义见 schema/arena.schema.json。换主题时新增一个 arena 条目即可。",
+	"default": "hulaoguan",
+	"arenas": {
+		"hulaoguan": {
+			"name": "虎牢关",
+			"map": "res://assets/bg/hulaoguan.png",
+			"ground": "res://assets/bg/hulaoguan_ground.png",
+			"size": [
+				1672,
+				941
+			],
+			"ground_scale": [
+				2600,
+				1200
+			],
+			"presets": {
+				"chen": {
+					"name": "辰时",
+					"map": "#F7FFFF",
+					"actor": "#FFFFFF",
+					"haze": "#D1DBEB",
+					"grade": "#FCFFFF",
+					"lift": "#000103",
+					"ray": "#FFFAE6",
+					"dust": "#FFF7E64C",
+					"map_sat": 0.84,
+					"map_bright": 1.0,
+					"vignette": 0.26,
+					"sat": 1.0,
+					"contrast": 1.02,
+					"ray_a": 0.07,
+					"motes": 60
+				},
+				"wu": {
+					"name": "午时",
+					"map": "#FFFFF7",
+					"actor": "#FFFFFF",
+					"haze": "#DBD1C2",
+					"grade": "#FFFFFC",
+					"lift": "#000000",
+					"ray": "#FFF2CC",
+					"dust": "#FFEBBF4C",
+					"map_sat": 0.86,
+					"map_bright": 1.0,
+					"vignette": 0.24,
+					"sat": 1.02,
+					"contrast": 1.03,
+					"ray_a": 0.05,
+					"motes": 50
+				},
+				"you": {
+					"name": "酉时",
+					"map": "#FFF5E6",
+					"actor": "#FFFAF2",
+					"haze": "#F2B88C",
+					"grade": "#FFFAF2",
+					"lift": "#030000",
+					"ray": "#FF9E4C",
+					"dust": "#FFBF7366",
+					"map_sat": 0.8,
+					"map_bright": 0.97,
+					"vignette": 0.32,
+					"sat": 1.0,
+					"contrast": 1.03,
+					"ray_a": 0.14,
+					"motes": 70
+				},
+				"sha": {
+					"name": "黄沙",
+					"map": "#FFF5E6",
+					"actor": "#FFFAF2",
+					"haze": "#E6D1A8",
+					"grade": "#FFFAF2",
+					"lift": "#050400",
+					"ray": "#FFD999",
+					"dust": "#E6C78C80",
+					"map_sat": 0.74,
+					"map_bright": 1.02,
+					"vignette": 0.3,
+					"sat": 0.95,
+					"contrast": 1.0,
+					"ray_a": 0.05,
+					"motes": 140
+				}
+			}
+		}
+	}
+}
