@@ -45,6 +45,7 @@ var first_blood := false
 var low_announced := [false, false]
 var lead_rounds_announced := 0
 var match_start_time := 0.0
+var match_elapsed := 0.0       # 三局两胜时累计前几局的时长（评分用）
 var unhorse_pending: Array = []
 var result_panel: Node = null
 var pause_menu: Node = null
@@ -230,6 +231,11 @@ func _make_controllers() -> void:
 # ---------------------------------------------------------------- 开场
 
 func _start_bout(first: bool) -> void:
+	# 多局制：把上一局的时间累计起来，评分用「整场总时长」而不是最后一局
+	if first:
+		match_elapsed = 0.0
+	elif match_start_time > 0.0:
+		match_elapsed += maxf(0.0, game_time - match_start_time)
 	phase = "intro"
 	cine_busy = false
 	skip_intro = false
@@ -1669,7 +1675,7 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 
 ## 结算评分 + 成长记录。只有玩家亲自打的单挑才计分（观战不计）。
 func _grade_and_record(a: Fighter, by_time: bool) -> Dictionary:
-	var duration := maxf(0.0, game_time - match_start_time)
+	var duration := match_elapsed + maxf(0.0, game_time - match_start_time)
 	var ev := Progress.evaluate(a.stats, a.hp / maxf(1.0, a.max_hp), duration, by_time)
 	var is_win := a.id == Game.p1_id
 	if is_win:

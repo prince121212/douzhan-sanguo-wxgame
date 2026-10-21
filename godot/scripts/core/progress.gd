@@ -234,8 +234,17 @@ func grade_index(gid: String) -> int:
 # ---------------------------------------------------------------- 段位
 
 ## 段位阶梯：把每个大段位拆成小段，得到 [{rank_id, rank_name, div_label, min, max, color, index}]
+## 带缓存：战绩页每帧都会查，避免每帧重建 19 个字典。
+var _ladder_cache: Array = []
+var _ladder_key := ""
+
 func ladder() -> Array:
 	var ranks: Array = Cfg.prog("rank.ranks", [])
+	var key := ""
+	for r in ranks:
+		key += "%s:%s:%s|" % [r.get("id", ""), r.get("min", 0), r.get("divisions", 1)]
+	if key == _ladder_key and not _ladder_cache.is_empty():
+		return _ladder_cache
 	var out: Array = []
 	for i in ranks.size():
 		var r: Dictionary = ranks[i]
@@ -261,6 +270,8 @@ func ladder() -> Array:
 				"color": r.get("color", Color.WHITE),
 				"index": out.size(),
 			})
+	_ladder_cache = out
+	_ladder_key = key
 	return out
 
 
@@ -450,6 +461,9 @@ func _auto_unlock_titles() -> Array:
 	for t in Cfg.prog("titles", []):
 		var id := str(t.get("id", ""))
 		if id in state.get("titles", []):
+			continue
+		# 需要花奖章买的称号不自动解锁（即使 require 是空的）
+		if float(t.get("cost", 0)) > 0:
 			continue
 		var req: Dictionary = t.get("require", {})
 		var ok := true

@@ -250,6 +250,27 @@
 			"require": {
 				"rank": "king"
 			}
+		},
+		{
+			"id": "huwei",
+			"name": "虎威将军",
+			"desc": "用奖章购买（300）",
+			"cost": 300,
+			"require": {}
+		},
+		{
+			"id": "wangui",
+			"name": "万人之敌",
+			"desc": "用奖章购买（800）",
+			"cost": 800,
+			"require": {}
+		},
+		{
+			"id": "tianxia",
+			"name": "天下无双",
+			"desc": "用奖章购买（2000）",
+			"cost": 2000,
+			"require": {}
 		}
 	]
 }
