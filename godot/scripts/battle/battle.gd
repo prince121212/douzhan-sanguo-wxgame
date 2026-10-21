@@ -81,6 +81,43 @@ func _ready() -> void:
 	_start_bout(true)
 	if "--pausetest" in OS.get_cmdline_user_args():
 		get_tree().create_timer(5.0).timeout.connect(func(): pause_menu.open())
+	if "--resulttest" in OS.get_cmdline_user_args():
+		get_tree().create_timer(1.2).timeout.connect(_result_test)
+	if "--resulttest-loss" in OS.get_cmdline_user_args():
+		get_tree().create_timer(1.2).timeout.connect(_result_test_loss)
+
+
+## 开发用：败北结算页（--resulttest-loss）
+func _result_test_loss() -> void:
+	phase = "result"
+	cine_busy = false
+	recording = false
+	f1.stats = {"hits": 12, "max_combo": 3, "parries": 1, "dodges": 0, "ults": 0, "dmg": 480.0, "clash_win": 0}
+	f1.hp = 0.0
+	f2.hp = f2.max_hp * 0.4
+	f1.set_pose("down")
+	f2.enter_victory()
+	match_start_time = game_time - 71.0
+	round_count = 11
+	wins[1] = 1
+	_end_bout(f2, f1, false)
+
+
+## 开发用：直接把战斗推到结算，检查战报页排版（--resulttest）
+func _result_test() -> void:
+	phase = "result"
+	cine_busy = false
+	recording = false
+	f1.stats = {"hits": 26, "max_combo": 9, "parries": 5, "dodges": 3, "ults": 2, "dmg": 1420.0, "clash_win": 2}
+	f2.stats = {"hits": 14, "max_combo": 4, "parries": 2, "dodges": 1, "ults": 1, "dmg": 610.0, "clash_win": 0}
+	f1.hp = f1.max_hp * 0.72
+	f2.hp = 0.0
+	f1.enter_victory()
+	f2.set_pose("down")
+	match_start_time = game_time - 62.0
+	round_count = 14
+	wins[0] = 1
+	_end_bout(f1, f2, false)
 
 
 func _exit_tree() -> void:
@@ -1612,15 +1649,36 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 		return
 	phase = "result"
 	cine.set_letterbox(false)
+	if hud:
+		hud.visible = false
+	if touch:
+		touch.visible = false
 	if Game.sim:
 		_sim_report(a, d, by_time)
 		return
+	var summary := {}
+	if player_side >= 0:
+		summary = _grade_and_record(a, by_time)
 	result_panel = CanvasLayer.new()
 	result_panel.set_script(ResultPanel)
-	result_panel.setup(self, a, d, by_time)
+	result_panel.setup(self, a, d, by_time, summary)
 	add_child(result_panel)
 	if player_side < 0:
 		autoplay_next_t = 7.5
+
+
+## 结算评分 + 成长记录。只有玩家亲自打的单挑才计分（观战不计）。
+func _grade_and_record(a: Fighter, by_time: bool) -> Dictionary:
+	var duration := maxf(0.0, game_time - match_start_time)
+	var ev := Progress.evaluate(a.stats, a.hp / maxf(1.0, a.max_hp), duration, by_time)
+	var is_win := a.id == Game.p1_id
+	if is_win:
+		return Progress.record_match(ev, Game.difficulty, true)
+	# 输了：不给分、不扣分，但仍记录败场（用于称号条件/统计）
+	Progress.record_match(ev, Game.difficulty, false)
+	return {"eval": ev, "is_win": false, "medals": 0, "gate_ok": true,
+		"rank_before": Progress.rank_info(), "rank_after": Progress.rank_info(),
+		"rank_up": false, "new_titles": []}
 
 
 func _sim_report(a: Fighter, d: Fighter, by_time: bool) -> void:

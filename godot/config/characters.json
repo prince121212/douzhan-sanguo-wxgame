@@ -170,15 +170,15 @@
 		},
 		"lvbu": {
 			"ai": {
-				"aggression": 0.78,
-				"combo": 0.78,
+				"aggression": 0.63,
+				"combo": 0.94,
 				"dodge": 0.45,
 				"feint": 0.2,
 				"honor": 0.0,
-				"jump": 0.22,
+				"jump": 0.31,
 				"parry": 0.6,
 				"patience": 0.42,
-				"taunt": 0.45,
+				"taunt": 0.9,
 				"ult_style": "finisher",
 				"zone": 0.0
 			},
@@ -189,7 +189,7 @@
 			"faction": "群",
 			"home": "九原",
 			"horse": "赤兔马",
-			"hp": 1360,
+			"hp": 1500,
 			"lines": {
 				"call": "何人敢挡我吕布！",
 				"honor": "",
@@ -212,9 +212,9 @@
 			"size": 1.05,
 			"stats": {
 				"dan": 92,
-				"su": 94,
+				"su": 105,
 				"tong": 86,
-				"wu": 100
+				"wu": 105
 			},
 			"ult": {
 				"desc": "飞身劈落，方天画戟三连横扫，末戟挑飞敌将。",

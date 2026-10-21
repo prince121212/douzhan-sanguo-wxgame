@@ -110,6 +110,7 @@ godot/config/
 ├── balance.json       全局平衡（回合时长 / 落马线 / 怒气 / 伤害浮动 / AI 4 档难度）
 ├── characters.json    武将名册（属性 / 血量 / AI 性格 / 台词）
 ├── arena.json         战场与时辰光照（换主题只改这里）
+├── progression.json   成长系统（评分 / 段位 / 奖章 / 称号 / 掉段）
 ├── moves/*.json       招式表，按兵器分文件（stand 步战 + mounted 马战，稀疏覆盖 _defaults.json）
 └── schema/*.json      数据结构定义（AI 和校验器的共同依据）
 ```
@@ -167,6 +168,25 @@ Godot 里运行时按 **F8 / F10** 也能开一个内置控制台（三态锁：
 
 新增武将 / 换地图主题的完整步骤见 `AGENTS.md`。
 
+## 成长系统（评分 · 段位 · 奖章）
+
+单机打 AI 也会算战绩：每赢一场按表现打分，分数换段位分和奖章。
+
+- **评分**：剩余血量 30 + 用时 25 + 技术（拆招/完美闪避/拼刀）25 + 最高连击 10 + 终结方式 10，满分 100
+- **评价**：C / B / A / S / SS / SSS 六档，分数线在 `progression.json` 的 `score.grades`
+- **超时判胜**（靠血量占优赢）评价最高只到 B —— 防止为了保血量拖时间
+- **段位**：青铜 → 白银 → 黄金 → 白金 → 钻石 → 超凡大师 → 最强王者，每段 3 个小段（III/II/I）
+- **输了不扣分、也不给分**；段位分只涨不跌（唯一例外见下面「掉段」）
+- **奖章**：永久累计的可消费货币，用来解锁武将、购买称号。花奖章不影响段位分
+- **难度门槛**：段位到钻石及以上后，「易」难度不再计分，防止刷简单难度上分
+- **掉段**：不靠服务端计时。只记录上次进游戏日期，下次进来做减法——
+  每连续 7 天没来掉一个小段，一次最多连掉 5 段（`rank.decay`）
+
+界面入口：主菜单 →「战　绩」（称号佩戴、武将解锁），结算页直接显示本场战报。
+
+存档：微信端走 `wx.setStorageSync`（经 `game.js` 的 `__dzsgStorage` 桥），
+桌面端写 `user://progress.json`。启动日志里有一行 `Progress: 微信存档自检 ✅/❌`。
+
 ## 代码结构要点
 
 - `godot/scripts/core/game.gd`：全局设置、输入映射、`view_size()` / `cover_rect()` / `ui_offset_y()` 等视口适配工具。
@@ -175,6 +195,9 @@ Godot 里运行时按 **F8 / F10** 也能开一个内置控制台（三态锁：
 - `wxgame/game.js`：宿主垫片（canvas/document/fetch/WebAssembly）、触摸桥、音频旁路。**不要改 `pkg_engine/index.js`**，它是 Godot 导出的胶水，重新导出会覆盖。
 - `godot/scripts/core/config.gd`：autoload `Cfg`，唯一负责读 JSON 并把 `#RRGGBB` 转成 `Color`、`float` 转成 `int`。
 - `godot/scripts/core/roster.gd` / `godot/scripts/battle/moves.gd`：薄壳，只做查询，不含数据。
+- `godot/scripts/core/progress.gd`：autoload `Progress`，评分/段位/奖章/称号/掉段的唯一实现，数值全部读 `config/progression.json`。
+- `godot/scripts/ui/result_panel.gd`：结算战报（评价印 / 五项评分条 / 段位进度 / 奖章）。
+- `godot/scripts/ui/profile_screen.gd`：「战绩」页（段位、称号、武将解锁）。
 
 ## 仓库说明
 

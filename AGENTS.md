@@ -38,6 +38,7 @@ godot/config/
 ├── balance.json              全局平衡参数（回合时长/落马线/怒气/伤害浮动/AI 难度）
 ├── characters.json           武将名册（属性/血量/AI 性格/台词）
 ├── arena.json                战场与时辰光照
+├── progression.json          成长系统（评分/段位/奖章/称号/掉段）
 ├── moves/
 │   ├── _defaults.json        招式默认值（所有招式共享）
 │   ├── spear.json            按兵器分文件：stand（步战）+ mounted（马战）
@@ -46,6 +47,7 @@ godot/config/
     ├── balance.schema.json   ← 数据结构定义，改字段必须同步改这里
     ├── characters.schema.json
     ├── arena.schema.json
+    ├── progression.schema.json
     └── moves.schema.json
 ```
 
@@ -84,7 +86,14 @@ godot/config/
 ### 5. Color 用 `#RRGGBB` 字符串
 JSON 没有 Color 类型。`Cfg.to_color()` 负责转换，写错格式会显示成品红色（一眼能看出来）。
 
-### 6. JSON 不能写注释
+### 6. 成长系统的数值也在配置里
+评分权重、分数线、段位门槛、奖章表、掉段天数全部在 `config/progression.json`。
+**不要**在 `progress.gd` 里写字面量——它是唯一读这份配置的地方（通过 `Cfg.prog()`）。
+
+新增段位/评价：只改 `progression.json` 的 `rank.ranks` / `score.grades`，
+再在 `medals.by_grade_difficulty` 里补对应的一行（校验器会检查是否漏行）。
+
+### 7. JSON 不能写注释
 说明文字写在 `schema` 的 `description` 里，或者用 `"_comment"` 字段（校验器会跳过 `_` 开头的键）。
 
 ---
@@ -141,6 +150,7 @@ bash _tools/export_wxgame.sh
 - `fighter.gd` 的物理常量（`GRAVITY` / `STAND_HW` / `MOUNT_HW`）—— 属于引擎手感，不打算配置化
 - 招式里的 `tilt_*` / `shake` / `hitstop` / `arc` / `sfx_*` —— 属于美术手感，schema 里标了 `tier: "feel"`
 - `battle.gd` 的演出时序（慢动作时长、镜头推拉）—— 属于演出节奏
+- `result_panel.gd` 的战报排版（坐标/字号/颜色）—— 属于界面设计
 - UI 布局坐标 —— 属于界面设计
 
 **如果某个数值被反复调整了 3 次以上，就把它迁进配置。**

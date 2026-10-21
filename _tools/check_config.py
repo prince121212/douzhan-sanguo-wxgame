@@ -296,6 +296,114 @@ def check_arena():
     print(f"  战场: {len(arenas)} 个")
 
 
+# ---------------------------------------------------------------- 成长系统
+def check_progression():
+    schema = load(SCHEMA / "progression.schema.json")
+    props = schema.get("properties", {})
+    data = load(CFG / "progression.json")
+    if not data:
+        return
+
+    def walk(obj, spec, prefix):
+        """通用递归：类型 / 多余键 / 必填 / range"""
+        t = spec.get("type")
+        if t == "object":
+            if not isinstance(obj, dict):
+                err(f"{prefix or 'progression'}: 应为对象")
+                return
+            sp = spec.get("properties", {})
+            for k in spec.get("required", []):
+                if k not in obj:
+                    err(f"progression.{prefix}{k}: 缺少必填项")
+            for k, v in obj.items():
+                if k.startswith("_"):
+                    continue
+                if sp and k not in sp:
+                    if spec.get("additionalProperties") is False:
+                        err(f"progression.{prefix}{k}: 多余字段（schema 里没有，八成是拼错了）")
+                    else:
+                        continue
+                if k in sp:
+                    walk(v, sp[k], prefix + k + ".")
+        elif t == "array":
+            if not isinstance(obj, list):
+                err(f"progression.{prefix[:-1]}: 应为数组")
+                return
+            item = spec.get("items", {})
+            for i, v in enumerate(obj):
+                walk(v, item, f"{prefix}{i}.")
+        else:
+            if t == "number" and not (isinstance(obj, (int, float)) and not isinstance(obj, bool)):
+                err(f"progression.{prefix[:-1]}: 应为数字，实际 {type(obj).__name__}")
+            elif t == "integer" and not (isinstance(obj, int) and not isinstance(obj, bool)):
+                err(f"progression.{prefix[:-1]}: 应为整数，实际 {type(obj).__name__}")
+            elif t == "string" and not isinstance(obj, str):
+                err(f"progression.{prefix[:-1]}: 应为字符串")
+            elif t == "boolean" and not isinstance(obj, bool):
+                err(f"progression.{prefix[:-1]}: 应为布尔值")
+            enum = spec.get("enum")
+            if enum and obj not in enum:
+                err(f"progression.{prefix[:-1]}: {obj!r} 不在允许值 {enum} 中")
+            rng = spec.get("range")
+            if rng and isinstance(obj, (int, float)) and not isinstance(obj, bool):
+                if obj < rng[0] or obj > rng[1]:
+                    warn(f"progression.{prefix[:-1]} = {obj} 超出建议区间 {rng}")
+
+    walk(data, {"type": "object", "properties": props, "required": schema.get("required", [])}, "")
+
+    # 业务一致性检查（这些错 schema 查不出来）
+    grades = [g.get("id") for g in data.get("score", {}).get("grades", [])]
+    mins = [float(g.get("min", 0)) for g in data.get("score", {}).get("grades", [])]
+    if mins != sorted(mins):
+        err("progression.score.grades: min 必须从低到高排列")
+    if len(set(grades)) != len(grades):
+        err("progression.score.grades: id 有重复")
+    cap = data.get("score", {}).get("timeout_max_grade", "")
+    if cap and cap not in grades:
+        err(f"progression.score.timeout_max_grade = 「{cap}」不在 grades 里")
+    table = data.get("medals", {}).get("by_grade_difficulty", {})
+    for gid in grades:
+        if gid not in table:
+            err(f"progression.medals.by_grade_difficulty: 缺少评价「{gid}」这一行")
+        else:
+            row = table[gid]
+            if not isinstance(row, list) or len(row) != 4:
+                err(f"progression.medals.by_grade_difficulty.{gid}: 必须是 4 个值（易/中/难/极）")
+    for gid in table:
+        if gid not in grades:
+            err(f"progression.medals.by_grade_difficulty: 多出评价「{gid}」（grades 里没有）")
+    ranks = data.get("rank", {}).get("ranks", [])
+    rids = [r.get("id") for r in ranks]
+    rmins = [float(r.get("min", 0)) for r in ranks]
+    if rmins != sorted(rmins):
+        err("progression.rank.ranks: min 必须从低到高排列")
+    if len(set(rids)) != len(rids):
+        err("progression.rank.ranks: id 有重复")
+    if rmins and rmins[0] != 0:
+        err("progression.rank.ranks: 最低段位的 min 必须是 0")
+    fr = data.get("rank", {}).get("difficulty_gate", {}).get("from_rank", "")
+    if fr and fr not in rids:
+        err(f"progression.rank.difficulty_gate.from_rank = 「{fr}」不在 ranks 里")
+    # 称号条件里的 rank id
+    for t in data.get("titles", []):
+        rq = t.get("require", {}) or {}
+        if rq.get("rank") and rq["rank"] not in rids:
+            err(f"progression.titles[{t.get('id')}].require.rank = 「{rq['rank']}」不在 ranks 里")
+        if rq.get("grade") and rq["grade"] not in grades:
+            err(f"progression.titles[{t.get('id')}].require.grade = 「{rq['grade']}」不在 grades 里")
+        if t.get("id") in [x.get("id") for x in data.get("titles", []) if x is not t] and False:
+            pass
+    tids = [t.get("id") for t in data.get("titles", [])]
+    if len(set(tids)) != len(tids):
+        err("progression.titles: id 有重复")
+    # 解锁武将必须是真实存在的武将
+    chars = load(CFG / "characters.json").get("characters", {})
+    for cid in data.get("unlocks", {}).get("characters", {}):
+        if cid not in chars:
+            err(f"progression.unlocks.characters: 武将「{cid}」不存在")
+    print(f"  成长系统: {len(grades)} 档评价 / {len(ranks)} 个段位 / {len(tids)} 个称号")
+
+
 def main():
     strict = "--strict" in sys.argv
     print("=== 配置校验 ===")
@@ -303,6 +411,7 @@ def main():
     check_moves()
     check_balance()
     check_arena()
+    check_progression()
 
     print()
     if warnings:

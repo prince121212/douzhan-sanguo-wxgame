@@ -72,14 +72,16 @@
   section>h2 .hint{font-weight:400; font-size:12px; color:var(--muted); margin-left:auto}
 
   .row{
-    display:grid; grid-template-columns:280px 130px 1fr; gap:14px;
-    align-items:center; padding:6px 16px; border-bottom:1px solid #241c18;
+    display:grid; grid-template-columns:340px 130px 1fr; gap:14px;
+    align-items:start; padding:9px 16px; border-bottom:1px solid #241c18;
   }
+  .row > input[type=number], .row > input[type=range], .row > .no-slider{margin-top:6px}
   .row:last-child{border-bottom:none}
   .row:hover{background:#221a16}
   .row.changed{background:#2a2110}
   .row.changed .name{color:var(--gold)}
-  .name{color:#ddd2c2; overflow:hidden; text-overflow:ellipsis}
+  .name{color:#ddd2c2}
+  .name .note{display:block; font-size:11.5px; line-height:1.45; color:#8a7a68; margin-top:3px; max-width:280px}
   .name .path{display:block; font-size:11px; color:#6b5c4c; font-family:ui-monospace,monospace}
   .row input[type=number]{
     width:100%; padding:6px 9px; border-radius:5px; text-align:right;
@@ -164,7 +166,7 @@
 <div class="toast" id="toast"></div>
 
 <script>
-const S = { configs:{}, schemas:{}, meta:{}, changes:{}, tab:'balance', filter:'' };
+const S = { configs:{}, schemas:{}, meta:{}, changes:{}, tab:'balance', filter:'', expanded:new Set() };
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -194,21 +196,25 @@ function buildRows(){
       const spec = sub[key], path = sec + '.' + key;
       const cur = getByPath(bal, path);
       const desc = spec.description || '';
+      const shortLabel = spec.label || key;
       if (spec.type === 'array' && Array.isArray(cur)){
         cur.forEach((v,i) => rows.push({
           file:'balance.json', path: path + '.' + i,
-          label: desc + ' [' + i + ']', desc,
+          label: shortLabel + ' · 第' + (i+1) + '档',
+          desc: desc + '（依次对应：易 / 中 / 难 / 极）',
           value: v, rng: spec.range || [], isInt:false,
           group: 'balance:' + sec, secName: secNames[sec] || sec
         }));
       } else if (isNum(cur)){
-        rows.push({ file:'balance.json', path, label: desc, desc,
+        rows.push({ file:'balance.json', path, label: shortLabel, desc,
           value: cur, rng: spec.range || [],
           isInt: Number.isInteger(cur) && (spec.type === 'integer'),
           group:'balance:'+sec, secName: secNames[sec] || sec });
       }
     }
   }
+
+  rows.push(...buildProgressionRows());
 
   const chars = (S.configs['characters.json'] || {}).characters || {};
   const order = (S.configs['characters.json'] || {}).order || Object.keys(chars);
@@ -218,20 +224,195 @@ function buildRows(){
     const c = chars[id]; if (!c) continue;
     const g = 'char:' + id;
     const nm = c.name || id;
-    const add = (path, label, rng, isInt) => {
+    const add = (path, label, rng, isInt, note) => {
       const v = getByPath(c, path);
       if (!isNum(v)) return;
       rows.push({file:'characters.json', path:'characters.'+id+'.'+path,
-        label, desc:'', value:v, rng:rng||[], isInt:!!isInt,
+        label, desc:note||'', value:v, rng:rng||[], isInt:!!isInt,
         group:g, secName: nm + ' · ' + (c.epithet||''), charId:id, charName:nm});
     };
-    add('hp','体力上限',[800,2200],true);
-    add('size','立绘缩放',[0.8,1.3],false);
-    for (const k of ['wu','tong','su','dan']) add('stats.'+k,'属性 · '+k,[60,100],true);
-    for (const k of ['aggression','patience','parry','dodge','combo','jump','feint','zone','honor','taunt'])
-      add('ai.'+k,'AI · '+k,[0,1],false);
+
+    add('hp','体力上限',[800,2200],true,
+      '血量。被打光就输。数值越高越耐打，但会让一局拖得更长。参考区间 1200~1450。');
+
+    add('size','立绘缩放',[0.8,1.3],false,
+      '只影响外观大小，不影响任何判定。1.0 是标准身高；想让某位武将显得魁梧就调大（如吕布 1.06）。');
+
+    add('stats.wu','武力',[60,100],true,
+      '决定「攻击力」。伤害 = 招式基础伤害 × 武力系数 × 对方统率系数。' +
+      '系数 = 0.62 + 武力/260：武力 60→0.85 倍，100→1.00 倍。' +
+      '注意：这一项影响的是「所有招式」的整体伤害，想单独加强某一招请改 config/moves。');
+
+    add('stats.tong','统率',[60,100],true,
+      '决定「减伤」。系数 = 1.0 - (统率-60)/420：统率 60→受伤 100%，100→受伤约 90%。' +
+      '数值越高越抗揍。和武力是同一套乘算，两者会互相抵消。');
+
+    add('stats.su','速度',[60,100],true,
+      '决定「移动速度」。系数 = 0.86 + 速度/700：速度 60→0.95 倍，100→1.00 倍。' +
+      '只影响走位和追击/逃跑，不影响出招快慢（出招帧数在 config/moves 里）。');
+
+    add('stats.dan','胆识',[60,100],true,
+      '目前【还没有接入任何逻辑】，改了不起作用。留作以后扩展用。');
+
+    add('ai.aggression','进攻欲望',[0,1],false,
+      'AI 主动进攻的倾向。越高越爱抢攻、越少等待；同时也会提高「拼刀」和「拆招反击」的意愿。' +
+      '张飞 0.86（猛攻型）· 关羽 0.50（沉稳型）。');
+
+    add('ai.patience','耐心',[0,1],false,
+      'AI 愿意等待、游斗、格挡的程度。越高越会拉开距离找机会、越少硬拼；' +
+      '也会影响「血量低时是否转为防守」。注意它和 aggression 是互相拉扯的。');
+
+    add('ai.parry','拆招能力',[0,1],false,
+      'AI 在对手出手的瞬间按下格挡（=拆招）的成功率。越高越难打中它。' +
+      '实际成功率还会乘以难度系数（易 0.25 / 中 0.55 / 难 0.85 / 极 1.05）。' +
+      '0.8 已经很强了，别轻易给满。');
+
+    add('ai.dodge','闪避倾向',[0,1],false,
+      'AI 遇到攻击时选择「闪避」而不是格挡的概率，也影响它躲箭的意愿。' +
+      '注意闪避要消耗耐力，所以数值过高会让 AI 很快没耐力。');
+
+    add('ai.combo','连招倾向',[0,1],false,
+      'AI 打连招的意愿：越高越容易连续出招（而不是打一下就退）。' +
+      '高连招 + 高进攻 = 压制型打法；低连招更适合打反击。');
+
+    add('ai.jump','跳跃倾向',[0,1],false,
+      'AI 用跳跃来躲攻击、躲箭的概率。跳跃有滞空破绽，所以别给太高。' +
+      '数值只影响「选择跳」的权重，不改变跳跃本身的手感。');
+
+    add('ai.feint','诈败倾向',[0,1],false,
+      'AI 假装后退、引诱对手追击、再回身反打的概率。关羽这类「拖刀计」角色给高值。' +
+      '太高会显得滑不留手，太低则缺少戏剧性。');
+
+    add('ai.zone','控场/远程倾向',[0,1],false,
+      'AI 拉开距离、用远程或长兵器控场的倾向。0 = 完全贴身打；' +
+      '大于 0 会明显降低主动进攻权重。黄忠这类弓手才需要调高，近战角色保持 0。');
+
+    add('ai.honor','武德（下马相陪）',[0,1],false,
+      '对手被打落马时，AI 是否也下马步战（而不是骑马欺负人）的概率。' +
+      '纯演出/人设，不影响胜负平衡。关羽 0.9（重武德）· 张飞 0.45。');
+
+    add('ai.taunt','喊话频率',[0,1],false,
+      'AI 战斗中说台词（嘲讽/喊话）的频率。纯表现，不影响战斗。' +
+      '台词内容在 characters.json 的 lines 里。');
   }
   return rows;
+}
+
+// ---------------- 成长系统（progression.json） ----------------
+// 直接从 schema 递归生成：对象 → 逐项；数组 → 逐项；数字 → 一行。
+// 这样以后新增字段（比如再加一个段位）控制台自动出现，不用改这里。
+function buildProgressionRows(){
+  const out = [];
+  const data = S.configs['progression.json'] || {};
+  const schema = S.schemas['progression'] || {};
+  if (!data || !schema.properties) return out;
+
+  const secNames = {
+    'score': '评分规则',
+    'score.weights': '评分 · 五项权重',
+    'score.skill': '评分 · 技术分细则',
+    'score.grades': '评分 · 评价档位（分数线）',
+    'medals': '奖章奖励',
+    'medals.by_grade_difficulty': '奖章 · 每场奖励（评价 × 难度）',
+    'rank': '段位',
+    'rank.ranks': '段位 · 晋级门槛',
+    'rank.difficulty_gate': '段位 · 难度门槛',
+    'rank.decay': '段位 · 掉段机制',
+    'unlocks': '解锁',
+    'unlocks.characters': '解锁 · 武将价格',
+    'titles': '称号',
+  };
+
+  const walk = (obj, spec, prefix, pathPrefix, groupKey) => {
+    if (!spec) return;
+    if (spec.type === 'object'){
+      const props = spec.properties || {};
+      // additionalProperties 的字典（如 奖章表 / 武将价格）：按实际键遍历
+      if (Object.keys(props).length === 0 && spec.additionalProperties && obj && typeof obj === 'object'){
+        for (const k of Object.keys(obj)){
+          if (k.startsWith('_')) continue;
+          walk(obj[k], spec.additionalProperties, prefix ? prefix + '.' + k : k, pathPrefix ? pathPrefix + '.' + k : k, groupKey);
+        }
+        return;
+      }
+      for (const k of Object.keys(props)){
+        if (k.startsWith('_')) continue;
+        const v = obj ? obj[k] : undefined;
+        const p = prefix ? prefix + '.' + k : k;
+        const gp = pathPrefix ? pathPrefix + '.' + k : k;
+        if (v === undefined) continue;
+        walk(v, props[k], p, gp, groupKey || k);
+      }
+      return;
+    }
+    if (spec.type === 'array'){
+      const items = spec.items || {};
+      const arr = Array.isArray(obj) ? obj : [];
+      arr.forEach((v, i) => {
+        if (items.type === 'object'){
+          const nm = (v && (v.name || v.id)) ? String(v.name || v.id) : ('#' + (i+1));
+          const props = items.properties || {};
+          for (const k of Object.keys(props)){
+            if (k.startsWith('_')) continue;
+            const iv = v[k];
+            if (!isNum(iv)) continue;
+            const isp = props[k];
+            out.push({
+              file:'progression.json',
+              path: pathPrefix + '.' + i + '.' + k,
+              label: nm + ' · ' + (isp.label || isp.description || k),
+              desc: (isp.description || ''),
+              value: iv, rng: isp.range || [],
+              isInt: isp.type === 'integer',
+              group: 'prog:' + pathPrefix,
+            secName: pathPrefix === 'medals.by_grade_difficulty'
+              ? ('奖章 · ' + pathPrefix.split('.')[1] + ' 评价')
+              : (secNames[pathPrefix] || pathPrefix)
+            });
+          }
+        } else if (isNum(v)){
+          const isp = items;
+          const DIFFS = ['易', '中', '难', '极'];
+          const isMedal = pathPrefix.startsWith('medals.by_grade_difficulty');
+          out.push({
+            file:'progression.json',
+            path: pathPrefix + '.' + i,
+            label: isMedal ? ('难度 · ' + (DIFFS[i] || ('第' + (i+1) + '档'))) : ((isp.label || '第') + (i+1) + ' 项'),
+            desc: (isp.description || '') + (isMedal ? '（依次对应：易 / 中 / 难 / 极）' : ''),
+            value: v, rng: isp.range || [],
+            isInt: isp.type === 'integer',
+            group: 'prog:' + pathPrefix,
+            secName: isMedal
+              ? ('奖章 · ' + pathPrefix.split('.').pop() + ' 评价')
+              : (secNames[pathPrefix] || pathPrefix)
+          });
+        }
+      });
+      return;
+    }
+    // 数字
+    if (isNum(obj)){
+      out.push({
+        file:'progression.json', path: pathPrefix,
+        label: spec.label || spec.description || pathPrefix,
+        desc: spec.description || '',
+        value: obj, rng: spec.range || [],
+        isInt: spec.type === 'integer',
+        group: 'prog:' + (groupKey || pathPrefix), secName: secNames[groupKey] || groupKey || pathPrefix
+      });
+    }
+  };
+
+  // 顶层：score / medals / rank 逐节；titles 单独一节
+  for (const sec of ['score','medals','rank','unlocks']){
+    if (data[sec] !== undefined && schema.properties[sec]){
+      walk(data[sec], schema.properties[sec], sec, sec, sec);
+    }
+  }
+  if (Array.isArray(data.titles)){
+    walk(data.titles, schema.properties.titles, 'titles', 'titles', 'titles');
+  }
+  return out;
 }
 
 // ---------------- 渲染 ----------------
@@ -253,6 +434,7 @@ function render(){
   let tabsHtml = '';
   tabsHtml += `<div class="tab ${S.tab==='balance'?'active':''}" data-tab="balance">全局平衡<span class="cnt">${Object.keys(counts).filter(k=>k.startsWith('balance:')).reduce((a,k)=>a+counts[k],0)}</span></div>`;
   tabsHtml += `<div class="tab ${S.tab==='chars'?'active':''}" data-tab="chars">武将<span class="cnt">${Object.keys(counts).filter(k=>k.startsWith('char:')).reduce((a,k)=>a+counts[k],0)}</span></div>`;
+  tabsHtml += `<div class="tab ${S.tab==='prog'?'active':''}" data-tab="prog">成长 / 段位<span class="cnt">${Object.keys(counts).filter(k=>k.startsWith('prog:')).reduce((a,k)=>a+counts[k],0)}</span></div>`;
   tabsEl.innerHTML = tabsHtml;
   tabsEl.querySelectorAll('.tab').forEach(el => el.onclick = () => {
     S.tab = el.dataset.tab; render();
@@ -262,6 +444,7 @@ function render(){
   let shown = rows.filter(r => {
     if (S.tab === 'balance' && !r.group.startsWith('balance:')) return false;
     if (S.tab === 'chars' && !r.group.startsWith('char:')) return false;
+    if (S.tab === 'prog' && !r.group.startsWith('prog:')) return false;
     if (!filter) return true;
     return (r.label + ' ' + r.path + ' ' + (r.secName||'') + ' ' + (r.charName||''))
       .toLowerCase().includes(filter);
@@ -278,14 +461,15 @@ function render(){
 
   let html = '';
   for (const [g, info] of groups){
-    html += `<section data-group="${esc(g)}"><h2><span class="arrow">▼</span>${esc(info.name)}<span class="hint">${info.rows.length} 项</span></h2><div class="rows">`;
+    const collapsed = S.expanded.has(g) ? '' : 'collapsed';
+    html += `<section class="${collapsed}" data-group="${esc(g)}"><h2><span class="arrow">▼</span>${esc(info.name)}<span class="hint">${info.rows.length} 项</span></h2><div class="rows">`;
     for (const r of info.rows){
       const key = changeKey(r.file, r.path);
       const changed = key in S.changes;
       const val = changed ? S.changes[key] : r.value;
       const hasSlider = r.rng.length >= 2 && r.rng[1] <= 1 && r.rng[0] >= 0;
       html += `<div class="row ${changed?'changed':''}" data-key="${esc(key)}">
-        <div class="name">${esc(r.label||r.path)}<span class="path">${esc(r.path)}</span></div>
+        <div class="name">${esc(r.label||r.path)}${r.desc?`<span class="note">${esc(r.desc)}</span>`:''}<span class="path">${esc(r.path)}</span></div>
         <input type="number" step="${r.isInt?1:0.01}" value="${val}" data-file="${esc(r.file)}" data-path="${esc(r.path)}" data-int="${r.isInt?1:0}">
         ${hasSlider
           ? `<input type="range" min="${r.rng[0]}" max="${r.rng[1]}" step="0.01" value="${val}" data-range-for="${esc(key)}">`
@@ -297,9 +481,15 @@ function render(){
   if (!html) html = '<section><div class="row"><span class="sub">没有匹配的字段</span></div></section>';
   $('#content').innerHTML = html;
 
-  // 折叠
+  // 折叠：记住展开过哪些组，重渲染后保持
   document.querySelectorAll('section > h2').forEach(h => {
-    h.onclick = () => h.parentElement.classList.toggle('collapsed');
+    h.onclick = () => {
+      const sec = h.parentElement;
+      sec.classList.toggle('collapsed');
+      const g = sec.dataset.group;
+      if (sec.classList.contains('collapsed')) S.expanded.delete(g);
+      else S.expanded.add(g);
+    };
   });
 
   // 输入事件
@@ -369,7 +559,7 @@ async function loadState(){
     const r = await fetch('/api/state', {cache:'no-store'});
     const d = await r.json();
     S.configs = d.configs; S.schemas = d.schemas; S.meta = d.meta;
-    S._rows = null; S.changes = {};
+    S._rows = null; S.changes = {}; S.expanded.clear();
     updateBadges();
     render();
   }catch(e){

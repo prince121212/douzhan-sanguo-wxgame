@@ -25,6 +25,7 @@ var moves: Dictionary = {}           # "weapon|stand"/"weapon|mounted" -> 稀疏
 var move_defaults: Dictionary = {}
 var arenas: Dictionary = {}
 var arena_default := "hulaoguan"
+var progression: Dictionary = {}      # 成长系统：评分/段位/奖章/称号
 
 var _loaded := false
 var _had_error := false      # 任何配置读取/解析失败都会置位，启动横幅据此报错
@@ -44,10 +45,12 @@ func reload() -> void:
 	_load_characters()
 	_load_moves()
 	_load_arenas()
+	_load_progression()
 	_loaded = true
 	var ok := not _had_error and characters.size() > 0 and moves.size() > 0 and arenas.size() > 0
-	print("%s Cfg: 配置已加载（%d 武将 / %d 招式组 / %d 战场 / %d ms）" % [
+	print("%s Cfg: 配置已加载（%d 武将 / %d 招式组 / %d 战场 / %d 段位 / %d ms）" % [
 		"✅" if ok else "❌", characters.size(), moves.size(), arenas.size(),
+		progression.get("rank", {}).get("ranks", []).size(),
 		Time.get_ticks_msec() - t0])
 	if not ok:
 		print("❌❌❌ 配置不完整！游戏可能显示异常。请运行 python3 _tools/check_config.py ❌❌❌")
@@ -224,6 +227,46 @@ func camera_focus(map_size: Vector2) -> Vector2:
 	if f is Array and f.size() >= 2:
 		return Vector2(float(f[0]) * map_size.x, float(f[1]) * map_size.y)
 	return map_size * 0.5
+
+
+# ---------------------------------------------------------------- 成长系统
+
+func _load_progression() -> void:
+	progression = _read("progression.json")
+	if progression.is_empty():
+		push_error("Cfg: progression.json 读取失败，成长系统将不可用")
+		_had_error = true
+		return
+	# 颜色字符串 -> Color（评分档 / 段位）
+	var sc: Dictionary = progression.get("score", {})
+	var grades: Array = sc.get("grades", [])
+	for g in grades:
+		if g is Dictionary and g.has("color"):
+			g["color"] = to_color(g["color"])
+	var rk: Dictionary = progression.get("rank", {})
+	var ranks: Array = rk.get("ranks", [])
+	for r in ranks:
+		if r is Dictionary and r.has("color"):
+			r["color"] = to_color(r["color"])
+
+
+## 成长配置取值：Cfg.prog("score.weights.hp", 30)
+func prog(path: String, default_value = null):
+	var cur = progression
+	for part in path.split("."):
+		if cur is Dictionary and cur.has(part):
+			cur = cur[part]
+		else:
+			return default_value
+	return cur
+
+
+func prog_float(path: String, default_value := 0.0) -> float:
+	return float(prog(path, default_value))
+
+
+func prog_int(path: String, default_value := 0) -> int:
+	return int(prog(path, default_value))
 
 
 # ---------------------------------------------------------------- 便捷取值

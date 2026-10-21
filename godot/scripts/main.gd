@@ -5,6 +5,7 @@ const SCREENS := {
 	"title": "res://scripts/ui/title_screen.gd",
 	"select": "res://scripts/ui/select_screen.gd",
 	"battle": "res://scripts/battle/battle.gd",
+	"profile": "res://scripts/ui/profile_screen.gd",
 }
 
 const CONSOLE_PATH := "res://tools/console.gd"
@@ -70,6 +71,8 @@ func _ready() -> void:
 	elif "--select" in args:
 		Game.mode = Game.Mode.WATCH if "--watchmode" in args else Game.Mode.DUEL
 		show_screen("select")
+	elif "--profile" in args:
+		show_screen("profile")
 	elif "--duel" in args:
 		Game.mode = Game.Mode.DUEL
 		if "--botplayer" in args:

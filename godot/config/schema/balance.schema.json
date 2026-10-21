@@ -28,7 +28,8 @@
             30,
             600
           ],
-          "description": "单挑一局时限（秒）"
+          "description": "单挑一局的时间上限（秒）。时间到还没分胜负就按剩余血量判赢。调小 → 节奏更快、更容易靠血量取胜；调大 → 更容易打出 KO。",
+          "label": "单挑一局时限"
         },
         "time_limit_watch": {
           "type": "number",
@@ -36,7 +37,8 @@
             30,
             600
           ],
-          "description": "观战一局时限（秒）"
+          "description": "观战模式一局的时间上限（秒）。观战通常比单挑短，避免看太久。",
+          "label": "观战一局时限"
         },
         "unhorse_hp_ratio": {
           "type": "number",
@@ -44,7 +46,8 @@
             0.2,
             0.9
           ],
-          "description": "体力低于该比例被打落马"
+          "description": "血量降到这个比例以下时被打落马（进入步战）。0.55 = 剩 55% 血落马。调高 → 更早下马；调低 → 更长时间马战。",
+          "label": "落马血量线"
         },
         "danger_hp_ratio": {
           "type": "number",
@@ -52,7 +55,8 @@
             0.05,
             0.5
           ],
-          "description": "低于该比例触发红边/残血播报"
+          "description": "血量低于此比例时触发红边脉动 + 「强弩之末」播报。纯演出提示。",
+          "label": "残血提示线"
         },
         "climax_hp_ratio": {
           "type": "number",
@@ -60,7 +64,8 @@
             0.1,
             0.7
           ],
-          "description": "低于该比例换成决战音乐"
+          "description": "任一方血量低于此比例时，BGM 换成决战音乐。纯演出。",
+          "label": "决战音乐线"
         },
         "low_hp_ratio": {
           "type": "number",
@@ -68,7 +73,8 @@
             0.05,
             0.5
           ],
-          "description": "结算时判定「残血翻盘」的线"
+          "description": "结算时判定「残血翻盘」的阈值：胜者血量低于此比例会额外标注。纯演出。",
+          "label": "残血翻盘判定线"
         }
       }
     },
@@ -83,7 +89,8 @@
             50,
             300
           ],
-          "description": "耐力上限"
+          "description": "耐力上限。闪避、疾跑、蓄力都消耗耐力，耐力见底就只能慢走。",
+          "label": "耐力上限"
         },
         "dodge_cost": {
           "type": "number",
@@ -91,7 +98,8 @@
             5,
             60
           ],
-          "description": "闪避消耗耐力"
+          "description": "一次闪避消耗多少耐力。调高 → 闪避更珍贵、不能连着闪。",
+          "label": "闪避消耗耐力"
         },
         "stamina_regen_idle": {
           "type": "number",
@@ -99,7 +107,8 @@
             0,
             60
           ],
-          "description": "待机每秒回耐力"
+          "description": "站着不动时每秒恢复多少耐力。",
+          "label": "待机回耐力/秒"
         },
         "stamina_regen_guard": {
           "type": "number",
@@ -107,7 +116,8 @@
             0,
             60
           ],
-          "description": "格挡中每秒回耐力"
+          "description": "格挡状态下每秒恢复多少耐力（通常最低）。",
+          "label": "格挡回耐力/秒"
         },
         "stamina_regen_other": {
           "type": "number",
@@ -115,7 +125,8 @@
             0,
             60
           ],
-          "description": "其它状态每秒回耐力"
+          "description": "其它状态（走位/出招）每秒恢复多少耐力。",
+          "label": "其它状态回耐力/秒"
         }
       }
     },
@@ -140,7 +151,8 @@
             0,
             300
           ],
-          "description": "自己挨打：每损失 1% 血加多少怒气"
+          "description": "自己挨打时，每损失 1% 血获得多少怒气。调高 → 劣势方更快攒出绝技。",
+          "label": "挨打涨怒气/1%血"
         },
         "on_hit_dealt_per_hp": {
           "type": "number",
@@ -148,7 +160,8 @@
             0,
             300
           ],
-          "description": "打中对手：每打掉 1% 血加多少怒气"
+          "description": "打中对手时，每打掉对方 1% 血获得多少怒气。",
+          "label": "打人涨怒气/1%血"
         },
         "on_block": {
           "type": "number",
@@ -156,7 +169,8 @@
             0,
             60
           ],
-          "description": "格挡成功加怒气"
+          "description": "成功格挡一次获得多少怒气。",
+          "label": "格挡成功涨怒气"
         },
         "on_parry": {
           "type": "number",
@@ -164,7 +178,8 @@
             0,
             60
           ],
-          "description": "拆招成功加怒气"
+          "description": "拆招成功（格挡的瞬间判定）获得多少怒气。",
+          "label": "拆招成功涨怒气"
         },
         "on_pdodge": {
           "type": "number",
@@ -172,7 +187,8 @@
             0,
             60
           ],
-          "description": "完美闪避加怒气"
+          "description": "完美闪避获得多少怒气。",
+          "label": "完美闪避涨怒气"
         },
         "on_clash_win": {
           "type": "number",
@@ -180,7 +196,8 @@
             0,
             60
           ],
-          "description": "拼刀获胜加怒气"
+          "description": "拼刀获胜获得多少怒气。",
+          "label": "拼刀获胜涨怒气"
         },
         "on_unhorse": {
           "type": "number",
@@ -188,7 +205,8 @@
             0,
             60
           ],
-          "description": "落马时加怒气"
+          "description": "落马时获得多少怒气。",
+          "label": "落马涨怒气"
         },
         "on_round_win": {
           "type": "number",
@@ -196,7 +214,8 @@
             0,
             60
           ],
-          "description": "拼刀弹开后加怒气"
+          "description": "拼刀弹开后获得多少怒气。",
+          "label": "拼刀弹开涨怒气"
         }
       }
     },
@@ -211,7 +230,8 @@
             0,
             0.3
           ],
-          "description": "伤害浮动 ±比例（0.06 = ±6%）"
+          "description": "伤害随机浮动范围。0.06 = ±6%。调 0 则伤害完全固定（方便做数值核算）。",
+          "label": "伤害浮动范围"
         },
         "counter_bonus": {
           "type": "number",
@@ -219,7 +239,8 @@
             0,
             1
           ],
-          "description": "拆招后反击的伤害加成比例"
+          "description": "拆招后反击的伤害加成比例。",
+          "label": "反击伤害加成"
         },
         "counter_chance": {
           "type": "number",
@@ -227,7 +248,8 @@
             0,
             1
           ],
-          "description": "AI 拆招后反击的概率"
+          "description": "AI 拆招成功后选择「立刻反击」的概率。",
+          "label": "AI 反击概率"
         }
       }
     },
@@ -241,28 +263,32 @@
           "items": {
             "type": "number"
           },
-          "description": "反应延迟（秒），越小越强"
+          "description": "4 档难度（易/中/难/极）的 AI 反应延迟，单位秒。越小越强：0.40 → 0.15。",
+          "label": "AI 反应延迟（4 档）"
         },
         "parry_scale": {
           "type": "array",
           "items": {
             "type": "number"
           },
-          "description": "拆招能力倍率"
+          "description": "4 档难度对「拆招能力」的倍率。会乘到武将的 ai.parry 上。",
+          "label": "拆招倍率（4 档）"
         },
         "mistake": {
           "type": "array",
           "items": {
             "type": "number"
           },
-          "description": "失误率"
+          "description": "4 档难度的失误率。越大越容易露出破绽。",
+          "label": "失误率（4 档）"
         },
         "aggression_scale": {
           "type": "array",
           "items": {
             "type": "number"
           },
-          "description": "进攻欲望倍率"
+          "description": "4 档难度对「进攻欲望」的倍率。会乘到武将的 ai.aggression 上。",
+          "label": "进攻倍率（4 档）"
         }
       }
     }

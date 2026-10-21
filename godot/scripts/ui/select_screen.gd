@@ -21,6 +21,13 @@ var opt_box: VBoxContainer
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	picks = [Game.p1_id, Game.p2_id]
+	if not Progress.is_char_unlocked(picks[0]) or not Progress.is_char_unlocked(picks[1]):
+		var pool0: Array = []
+		for id in Roster.ids():
+			if Progress.is_char_unlocked(id):
+				pool0.append(id)
+		if pool0.size() >= 2:
+			picks = [pool0[0], pool0[1]]
 	if picks[0] == picks[1]:
 		picks[1] = "lvbu" if picks[0] != "lvbu" else "zhaoyun"
 	bg_rect = TextureRect.new()
@@ -78,6 +85,9 @@ func _build_grid() -> void:
 		b.add_theme_stylebox_override("focus", hov)
 		b.add_theme_stylebox_override("pressed", hov)
 		var gid: String = id
+		if not Progress.is_char_unlocked(gid):
+			b.disabled = true
+			b.modulate = Color(0.55, 0.55, 0.55)
 		b.pressed.connect(func(): _pick(gid))
 		b.focus_entered.connect(func(): Sfx.play("ui_click", -14.0))
 		var face := TextureRect.new()
@@ -107,6 +117,16 @@ func _build_grid() -> void:
 
 
 func _draw_card_tag(c: Control, id: String) -> void:
+	if not Progress.is_char_unlocked(id):
+		var f0: Font = Game.font_title
+		c.draw_rect(Rect2(0, 0, 140, 176), Color(0, 0, 0, 0.55))
+		var lk := "未解锁"
+		var w0 := f0.get_string_size(lk, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+		c.draw_string(f0, Vector2(70 - w0 * 0.5, 78), lk, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(1, 0.8, 0.4))
+		var pr := "%d 奖章" % Progress.char_price(id)
+		var w1 := f0.get_string_size(pr, HORIZONTAL_ALIGNMENT_LEFT, -1, 18).x
+		c.draw_string(f0, Vector2(70 - w1 * 0.5, 106), pr, HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(0.9, 0.85, 0.75))
+		return
 	for s in 2:
 		if picks[s] == id:
 			var col := Color(0.85, 0.2, 0.12) if s == 0 else Color(0.2, 0.4, 0.85)
@@ -238,6 +258,10 @@ func _build_options(watch: bool) -> void:
 
 
 func _pick(id: String) -> void:
+	if not Progress.is_char_unlocked(id):
+		Sfx.play("ui_click", -6.0)
+		slot_label.text = "「%s」尚未解锁 · 在「战绩」页用奖章解锁" % Roster.display_name(id)
+		return
 	if picks[1 - slot] == id:
 		# 不能选同一人：交换
 		picks[1 - slot] = picks[slot]
@@ -249,9 +273,14 @@ func _pick(id: String) -> void:
 
 
 func _random() -> void:
-	var ids: Array = Roster.ids()
-	ids.shuffle()
-	picks = [ids[0], ids[1]]
+	var pool: Array = []
+	for id in Roster.ids():
+		if Progress.is_char_unlocked(id):
+			pool.append(id)
+	if pool.size() < 2:
+		pool = Roster.ids()
+	pool.shuffle()
+	picks = [pool[0], pool[1] if pool.size() > 1 else pool[0]]
 	_refresh()
 
 
@@ -301,6 +330,10 @@ func _refresh() -> void:
 	for r in rule_btns:
 		r[1].modulate = Color(1, 1, 1) if Game.watch_rule == r[0] else Color(0.6, 0.6, 0.6)
 	mount_btn.text = "开局：骑马出阵" if Game.start_mounted else "开局：步战"
+	if not watch and not Progress.difficulty_gate_ok(Game.difficulty):
+		slot_label.text = "当前段位下，「%s」难度不计分（需「%s」及以上）" % [
+			Game.difficulty_name(Game.difficulty),
+			Game.difficulty_name(Cfg.prog_int("rank.difficulty_gate.min_difficulty", 1))]
 
 
 ## 视口尺寸变化（微信 canvas 异步 resize）时重排

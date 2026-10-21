@@ -1,0 +1,255 @@
+{
+	"_comment": "成长系统：评分 / 段位 / 奖章 / 称号 / 掉段。字段含义见 schema/progression.schema.json。改数值不用改代码。",
+	"score": {
+		"weights": {
+			"hp": 30,
+			"time": 25,
+			"skill": 25,
+			"combo": 10,
+			"finish": 10
+		},
+		"time_full_seconds": 40,
+		"time_zero_seconds": 150,
+		"combo_full": 8,
+		"skill": {
+			"parry": 3,
+			"parry_cap": 12,
+			"dodge": 3,
+			"dodge_cap": 8,
+			"clash": 5,
+			"clash_cap": 5
+		},
+		"grades": [
+			{
+				"id": "C",
+				"name": "C",
+				"min": 0,
+				"color": "#9C9C9C",
+				"desc": "勉强取胜"
+			},
+			{
+				"id": "B",
+				"name": "B",
+				"min": 45,
+				"color": "#6FBF73",
+				"desc": "稳扎稳打"
+			},
+			{
+				"id": "A",
+				"name": "A",
+				"min": 60,
+				"color": "#5AA9E6",
+				"desc": "游刃有余"
+			},
+			{
+				"id": "S",
+				"name": "S",
+				"min": 75,
+				"color": "#B07DE8",
+				"desc": "技惊四座"
+			},
+			{
+				"id": "SS",
+				"name": "SS",
+				"min": 88,
+				"color": "#FFB347",
+				"desc": "万人敌"
+			},
+			{
+				"id": "SSS",
+				"name": "SSS",
+				"min": 96,
+				"color": "#FF5A3C",
+				"desc": "天下无双"
+			}
+		],
+		"timeout_max_grade": "B"
+	},
+	"medals": {
+		"_comment": "奖章 = 永久累计货币，用来解锁武将和称号。行=评价，列=[易,中,难,极]。",
+		"by_grade_difficulty": {
+			"C": [
+				2,
+				4,
+				8,
+				14
+			],
+			"B": [
+				4,
+				8,
+				16,
+				26
+			],
+			"A": [
+				6,
+				12,
+				24,
+				40
+			],
+			"S": [
+				9,
+				18,
+				36,
+				60
+			],
+			"SS": [
+				12,
+				24,
+				48,
+				80
+			],
+			"SSS": [
+				16,
+				32,
+				64,
+				110
+			]
+		}
+	},
+	"rank": {
+		"_comment": "段位分 = 本场获得的奖章（1:1）。输了不扣分、也不给分。每个大段位分 3 个小段（III→II→I）。",
+		"points_per_medal": 1.0,
+		"ranks": [
+			{
+				"id": "bronze",
+				"name": "青铜",
+				"min": 0,
+				"divisions": 3,
+				"color": "#B08D57"
+			},
+			{
+				"id": "silver",
+				"name": "白银",
+				"min": 80,
+				"divisions": 3,
+				"color": "#C8CDD4"
+			},
+			{
+				"id": "gold",
+				"name": "黄金",
+				"min": 240,
+				"divisions": 3,
+				"color": "#E8B75C"
+			},
+			{
+				"id": "platinum",
+				"name": "白金",
+				"min": 560,
+				"divisions": 3,
+				"color": "#7FE0D0"
+			},
+			{
+				"id": "diamond",
+				"name": "钻石",
+				"min": 1100,
+				"divisions": 3,
+				"color": "#6FB3FF"
+			},
+			{
+				"id": "master",
+				"name": "超凡大师",
+				"min": 2000,
+				"divisions": 3,
+				"color": "#C77DFF"
+			},
+			{
+				"id": "king",
+				"name": "最强王者",
+				"min": 3400,
+				"divisions": 1,
+				"color": "#FF5A3C"
+			}
+		],
+		"difficulty_gate": {
+			"_comment": "段位到 from_rank（含）以上后，难度低于 min_difficulty 的对局不给分，防止刷「易」上分。",
+			"from_rank": "diamond",
+			"min_difficulty": 1
+		},
+		"decay": {
+			"_comment": "掉段：距上次进游戏 >= days 天，掉一个小段；累计最多掉 max_stacks 次后不再掉。",
+			"days": 7,
+			"max_stacks": 5
+		}
+	},
+	"unlocks": {
+		"_comment": "解锁表。characters 里填 { 武将id: 奖章价格 } 即可把该武将设为锁定；没写进来的武将默认解锁。titles 里的称号按条件自动解锁（cost=0）或花奖章购买。",
+		"characters": {
+			"xusheng": 120,
+			"xuchu": 260
+		}
+	},
+	"titles": [
+		{
+			"id": "chujian",
+			"name": "初出茅庐",
+			"desc": "赢下第一场斗将",
+			"cost": 0,
+			"require": {
+				"wins": 1
+			}
+		},
+		{
+			"id": "baizhan",
+			"name": "百战之将",
+			"desc": "累计获胜 20 场",
+			"cost": 0,
+			"require": {
+				"wins": 20
+			}
+		},
+		{
+			"id": "silver",
+			"name": "白银斗士",
+			"desc": "段位达到白银",
+			"cost": 0,
+			"require": {
+				"rank": "silver"
+			}
+		},
+		{
+			"id": "gold",
+			"name": "黄金虎将",
+			"desc": "段位达到黄金",
+			"cost": 0,
+			"require": {
+				"rank": "gold"
+			}
+		},
+		{
+			"id": "qianqi",
+			"name": "一骑当千",
+			"desc": "累计获胜 100 场",
+			"cost": 0,
+			"require": {
+				"wins": 100
+			}
+		},
+		{
+			"id": "wushuang",
+			"name": "绝世无双",
+			"desc": "打出过一次 SSS 评价",
+			"cost": 0,
+			"require": {
+				"grade": "SSS"
+			}
+		},
+		{
+			"id": "changsheng",
+			"name": "常胜将军",
+			"desc": "最高连胜 10 场",
+			"cost": 0,
+			"require": {
+				"streak": 10
+			}
+		},
+		{
+			"id": "zongshi",
+			"name": "斗将宗师",
+			"desc": "段位达到最强王者",
+			"cost": 0,
+			"require": {
+				"rank": "king"
+			}
+		}
+	]
+}

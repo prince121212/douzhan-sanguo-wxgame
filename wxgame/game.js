@@ -100,6 +100,28 @@ try {
   __log('unhandledrejection 已挂钩');
 } catch (e) {}
 
+// ---------------------------------------------------------------------------
+// 0.5) 存档桥（给 Godot 的 JavaScriptBridge 用）
+// ---------------------------------------------------------------------------
+// 为什么不直接在 GDScript 里 eval "wx.setStorageSync(...)"：
+//   · Godot 的 eval 跑在引擎胶水的模块作用域，未必能直接看到 wx；
+//   · 平台对 eval 的限制也更难排查。
+// 这里在 game.js（一定能拿到 wx）里挂一个极小的同步接口，GDScript 只调它。
+g.__dzsgStorage = {
+  dzsgGet: function (key) {
+    try { var v = wx.getStorageSync(key); return (typeof v === 'string') ? v : ''; }
+    catch (e) { return ''; }
+  },
+  dzsgSet: function (key, val) {
+    try { wx.setStorageSync(key, val); return '1'; }
+    catch (e) { return 'ERR:' + (e && e.message || e); }
+  },
+  dzsgDel: function (key) {
+    try { wx.removeStorageSync(key); return '1'; }
+    catch (e) { return 'ERR:' + (e && e.message || e); }
+  },
+};
+
 g.__DZSG = {
   log: function () {
     const a = Array.prototype.slice.call(arguments);
@@ -1273,7 +1295,7 @@ function boot() {
         canvasResizePolicy: 2,
         executable: 'index',
         args: [],
-        fileSizes: { 'index.pck': 11135440, 'index.wasm': 39514754 },
+        fileSizes: { 'index.pck': 11181040, 'index.wasm': 39514754 },
         focusCanvas: false,
         emscriptenPoolSize: 0,
         godotPoolSize: 0,

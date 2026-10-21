@@ -16,6 +16,7 @@ Game="*res://scripts/core/game.gd"
 Sfx="*res://scripts/core/sfx.gd"
 Roster="*res://scripts/core/roster.gd"
 Bank="*res://scripts/core/sprite_bank.gd"
+Progress="*res://scripts/core/progress.gd"
 
 [display]
 window/size/viewport_width=1920

@@ -15,6 +15,7 @@ var base_scale := {}
 var _bg_base_pos := Vector2.ZERO
 var hint_lbl: Label
 var credit_lbl: Label
+var rank_lbl: Label
 
 
 ## 底图铺满视口：等比放大到完全覆盖，多出的部分居中裁掉。
@@ -30,12 +31,17 @@ func _cover_bg() -> void:
 
 func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
-	var ids: Array = Roster.ids()
-	ids.shuffle()
-	left_id = ids[0]
-	right_id = ids[1]
-	if randf() < 0.4:
-		right_id = "lvbu" if left_id != "lvbu" else "zhangfei"
+	var pool: Array = []
+	for id in Roster.ids():
+		if Progress.is_char_unlocked(id):
+			pool.append(id)
+	if pool.size() < 2:
+		pool = Roster.ids()
+	pool.shuffle()
+	left_id = pool[0]
+	right_id = pool[1]
+	if randf() < 0.4 and Progress.is_char_unlocked("lvbu") and left_id != "lvbu":
+		right_id = "lvbu"
 	bg = TextureRect.new()
 	var bg_path: String = Cfg.arena().get("map", "")
 	if bg_path != "" and ResourceLoader.exists(bg_path):
@@ -88,7 +94,7 @@ func _ready() -> void:
 	add_child(title_node)
 	menu = VBoxContainer.new()
 	menu.add_theme_constant_override("separation", 14)
-	menu.position = Vector2(Game.view_size().x * 0.5 - 190, 560 + Game.ui_offset_y())
+	menu.position = Vector2(Game.view_size().x * 0.5 - 190, 536 + Game.ui_offset_y())
 	add_child(menu)
 	var b1 := UiKit.button("单挑斗将", func():
 		Game.mode = Game.Mode.DUEL
@@ -97,6 +103,7 @@ func _ready() -> void:
 	menu.add_child(UiKit.button("观战擂台", func():
 		Game.mode = Game.Mode.WATCH
 		Game.goto("select"), 44, 380))
+	menu.add_child(UiKit.button("战　绩", func(): Game.goto("profile"), 44, 380))
 	menu.add_child(UiKit.button("设　置", _toggle_settings, 44, 380))
 	# 微信小游戏没有"退出游戏"这个概念（退出由平台胶囊按钮负责），
 	# 桌面上才给这个按钮。
@@ -109,6 +116,20 @@ func _ready() -> void:
 	hint_lbl = UiKit.label(hint_text, 24, Color(0.9, 0.82, 0.7, 0.8), false, 4)
 	hint_lbl.position = Vector2(Game.view_size().x * 0.5 - 560, Game.view_size().y - 80)
 	add_child(hint_lbl)
+	rank_lbl = UiKit.label("", 28, Color(1.0, 0.86, 0.5), true, 6)
+	rank_lbl.position = Vector2(Game.view_size().x * 0.5 - 300, 500 + Game.ui_offset_y())
+	rank_lbl.size = Vector2(600, 44)
+	rank_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(rank_lbl)
+	_refresh_rank()
+	if not Progress.last_decay.is_empty():
+		var d: Dictionary = Progress.last_decay
+		var decay_lbl := UiKit.label("久未出阵，段位由 %s 降至 %s" % [d.get("from_text", ""), d.get("to_text", "")], 24, Color(1.0, 0.7, 0.5), false, 4)
+		decay_lbl.position = Vector2(Game.view_size().x * 0.5 - 500, 548 + Game.ui_offset_y())
+		decay_lbl.size = Vector2(1000, 40)
+		decay_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		add_child(decay_lbl)
+		Progress.last_decay = {}
 	credit_lbl = UiKit.label("音乐：Imperial China Cinematic / The Fall Of Heroes — Shane Ivers (silvermansound.com, CC BY 4.0) · Horde War Drums — William Hector (CC0)", 16, Color(0.85, 0.78, 0.66, 0.6), false, 0)
 	credit_lbl.position = Vector2(20, Game.view_size().y - 30)
 	add_child(credit_lbl)
@@ -139,9 +160,11 @@ func _layout() -> void:
 	if title_node:
 		title_node.position = Vector2(vs.x * 0.5, 300 + oy)
 	if menu:
-		menu.position = Vector2(vs.x * 0.5 - 190, 560 + oy)
+		menu.position = Vector2(vs.x * 0.5 - 190, 536 + oy)
 	if settings_box:
 		settings_box.position = Vector2(vs.x * 0.5 - 400, 300 + oy)
+	if rank_lbl:
+		rank_lbl.position = Vector2(vs.x * 0.5 - 300, 500 + oy)
 	if hint_lbl:
 		hint_lbl.position = Vector2(vs.x * 0.5 - 560, vs.y - 80)
 	if credit_lbl:
@@ -283,8 +306,21 @@ func _slider(text: String, val: float, cb: Callable) -> HBoxContainer:
 	return h
 
 
+func _refresh_rank() -> void:
+	var info := Progress.rank_info()
+	var tt := Progress.title_name()
+	var txt := "段位 %s　·　奖章 %d" % [str(info.get("text", "")), int(Progress.state.get("medals", 0))]
+	if tt != "":
+		txt += "　·　「%s」" % tt
+	rank_lbl.text = txt
+	rank_lbl.add_theme_color_override("font_color", info.get("color", Color(1.0, 0.86, 0.5)))
+
+
 func _toggle_settings() -> void:
 	settings_box.visible = not settings_box.visible
 	menu.visible = not settings_box.visible
 	if menu.visible:
-		menu.get_child(2).grab_focus()
+		for c in menu.get_children():
+			if c is Button and c.text == "设　置":
+				c.grab_focus()
+				break

@@ -38,7 +38,7 @@ CHECK_SCRIPT = ROOT / "_tools" / "check_config.py"
 EXPORT_SCRIPT = ROOT / "_tools" / "export_wxgame.sh"
 
 # 允许通过界面编辑的配置文件
-EDITABLE = ["balance.json", "characters.json", "arena.json"]
+EDITABLE = ["balance.json", "characters.json", "arena.json", "progression.json"]
 MOVES_DIR = CFG / "moves"
 
 JOB = {"state": "idle", "log": "", "started": 0.0, "elapsed": 0.0, "ok": None}

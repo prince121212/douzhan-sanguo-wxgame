@@ -1,0 +1,473 @@
+{
+  "_readme": [
+    "成长系统数据结构：评分 / 段位 / 奖章 / 称号 / 掉段。",
+    "所有数值都在 progression.json 里，代码只负责算。",
+    "评分公式：五项加权求和（满分 100），再按 grades 的 min 阈值换算成评价。",
+    "段位分 = 本场奖章 × points_per_medal，只增不减（输了不给分、也不扣分）。",
+    "奖章是「可消费货币」，用来解锁武将/称号；花掉奖章不会掉段位。"
+  ],
+  "type": "object",
+  "required": [
+    "score",
+    "medals",
+    "rank",
+    "unlocks",
+    "titles"
+  ],
+  "properties": {
+    "score": {
+      "type": "object",
+      "description": "单场表现评分",
+      "required": [
+        "weights",
+        "time_full_seconds",
+        "time_zero_seconds",
+        "combo_full",
+        "skill",
+        "grades",
+        "timeout_max_grade"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "weights": {
+          "type": "object",
+          "description": "五项满分权重，建议加起来 = 100",
+          "required": [
+            "hp",
+            "time",
+            "skill",
+            "combo",
+            "finish"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "hp": {
+              "type": "number",
+              "range": [
+                0,
+                60
+              ],
+              "label": "权重 · 剩余血量",
+              "description": "结算时按「胜者剩余血量比例 × 该权重」给分。30 = 满血拿满 30 分，半血拿 15 分。"
+            },
+            "time": {
+              "type": "number",
+              "range": [
+                0,
+                60
+              ],
+              "label": "权重 · 用时",
+              "description": "越快打完分越高。40 秒内拿满，150 秒归零，中间线性。配合下面的两个时间阈值一起调。"
+            },
+            "skill": {
+              "type": "number",
+              "range": [
+                0,
+                60
+              ],
+              "label": "权重 · 技术",
+              "description": "拆招 / 完美闪避 / 拼刀胜利 三项的合计上限。具体每项多少分在 skill 段里配。"
+            },
+            "combo": {
+              "type": "number",
+              "range": [
+                0,
+                40
+              ],
+              "label": "权重 · 最高连击",
+              "description": "按「最高连击数 ÷ combo_full」给分，打满 combo_full 段即拿满。"
+            },
+            "finish": {
+              "type": "number",
+              "range": [
+                0,
+                40
+              ],
+              "label": "权重 · 终结方式",
+              "description": "把对手打倒（KO）拿满；靠时间到、血量占优判赢拿 0 分。"
+            }
+          }
+        },
+        "time_full_seconds": {
+          "type": "number",
+          "range": [
+            5,
+            120
+          ],
+          "label": "用时满分线（秒）",
+          "description": "这一秒数以内结束战斗，用时项拿满分。调小 → 逼玩家速战速决；调大 → 更宽容。"
+        },
+        "time_zero_seconds": {
+          "type": "number",
+          "range": [
+            30,
+            600
+          ],
+          "label": "用时零分线（秒）",
+          "description": "拖到这个秒数，用时项得 0 分。必须大于满分线。"
+        },
+        "combo_full": {
+          "type": "integer",
+          "range": [
+            2,
+            30
+          ],
+          "label": "连击满分所需段数",
+          "description": "最高连击达到这么多段，连击项拿满分。8 = 打出 8 连即可。"
+        },
+        "skill": {
+          "type": "object",
+          "description": "技术分细则",
+          "required": [
+            "parry",
+            "parry_cap",
+            "dodge",
+            "dodge_cap",
+            "clash",
+            "clash_cap"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "parry": {
+              "type": "number",
+              "range": [
+                0,
+                20
+              ],
+              "label": "每次拆招得分",
+              "description": "成功拆招（对手出招瞬间按格挡）一次得多少分。"
+            },
+            "parry_cap": {
+              "type": "number",
+              "range": [
+                0,
+                40
+              ],
+              "label": "拆招得分上限",
+              "description": "拆招项最多累计多少分，防止一味防守刷分。"
+            },
+            "dodge": {
+              "type": "number",
+              "range": [
+                0,
+                20
+              ],
+              "label": "每次完美闪避得分",
+              "description": "在对手命中前一瞬闪开（完美闪避）一次得多少分。"
+            },
+            "dodge_cap": {
+              "type": "number",
+              "range": [
+                0,
+                40
+              ],
+              "label": "闪避得分上限",
+              "description": "闪避项最多累计多少分。"
+            },
+            "clash": {
+              "type": "number",
+              "range": [
+                0,
+                20
+              ],
+              "label": "每次拼刀获胜得分",
+              "description": "双方兵器对撞进入拼刀、你拼赢一次得多少分。"
+            },
+            "clash_cap": {
+              "type": "number",
+              "range": [
+                0,
+                40
+              ],
+              "label": "拼刀得分上限",
+              "description": "拼刀项最多累计多少分。"
+            }
+          }
+        },
+        "grades": {
+          "type": "array",
+          "description": "评价档位，min 为达到该档所需的最低总分（从低到高排列）",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "min",
+              "color",
+              "desc"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "内部 id，也是奖章表的行键"
+              },
+              "name": {
+                "type": "string",
+                "description": "显示名"
+              },
+              "min": {
+                "type": "number",
+                "range": [
+                  0,
+                  100
+                ],
+                "description": "达到该评价所需的最低总分"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "description": "评价颜色 #RRGGBB"
+              },
+              "desc": {
+                "type": "string",
+                "description": "评价说明（结算页显示）"
+              }
+            }
+          }
+        },
+        "timeout_max_grade": {
+          "type": "string",
+          "label": "超时判胜最高评价",
+          "description": "靠时间到、血量占优判赢时，评价最高只能到这一档（填 grades 里的 id，如 B）。防止玩家为了保血量拖时间。填空字符串 = 不限制。"
+        }
+      }
+    },
+    "medals": {
+      "type": "object",
+      "description": "奖章奖励表",
+      "required": [
+        "by_grade_difficulty"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "by_grade_difficulty": {
+          "type": "object",
+          "description": "行 = 评价 id，列 = [易, 中, 难, 极] 四档难度。每场获胜按「评价 × 难度」发奖章。",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "type": "number",
+              "range": [
+                0,
+                500
+              ]
+            }
+          }
+        }
+      }
+    },
+    "rank": {
+      "type": "object",
+      "description": "段位",
+      "required": [
+        "points_per_medal",
+        "ranks",
+        "difficulty_gate",
+        "decay"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "points_per_medal": {
+          "type": "number",
+          "range": [
+            0.1,
+            10
+          ],
+          "label": "段位分 = 奖章 ×",
+          "description": "每枚奖章换算多少段位分。1.0 = 奖章和段位分同涨同落（但花奖章不掉段位分）。"
+        },
+        "ranks": {
+          "type": "array",
+          "description": "大段位，min 为进入该段位所需的最低段位分（从低到高）",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "min",
+              "divisions",
+              "color"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "内部 id"
+              },
+              "name": {
+                "type": "string",
+                "description": "显示名，如 黄金"
+              },
+              "min": {
+                "type": "number",
+                "range": [
+                  0,
+                  100000
+                ],
+                "description": "进入该段位所需的最低段位分"
+              },
+              "divisions": {
+                "type": "integer",
+                "range": [
+                  1,
+                  5
+                ],
+                "description": "该段位分成几个小段（3 = III/II/I，1 = 不分小段）"
+              },
+              "color": {
+                "type": "string",
+                "pattern": "^#[0-9A-Fa-f]{6}$",
+                "description": "段位颜色 #RRGGBB"
+              }
+            }
+          }
+        },
+        "difficulty_gate": {
+          "type": "object",
+          "description": "难度门槛：段位到 from_rank 及以上后，难度低于 min_difficulty 的对局不给分（防刷简单难度上分）",
+          "required": [
+            "from_rank",
+            "min_difficulty"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "from_rank": {
+              "type": "string",
+              "label": "门槛起始段位 id",
+              "description": "段位 id。到这个段位（含）以上，低难度对局不再给分。填空字符串 = 关闭门槛。"
+            },
+            "min_difficulty": {
+              "type": "integer",
+              "range": [
+                0,
+                3
+              ],
+              "label": "最低有效难度（0易/1中/2难/3极）",
+              "description": "0 易 / 1 中 / 2 难 / 3 极。低于该难度不给分。"
+            }
+          }
+        },
+        "decay": {
+          "type": "object",
+          "description": "掉段机制（不靠服务端计时：只记录上次进游戏日期，下次进来做减法）",
+          "required": [
+            "days",
+            "max_stacks"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "days": {
+              "type": "integer",
+              "range": [
+                1,
+                90
+              ],
+              "label": "掉段间隔（天）",
+              "description": "连续多少天没进游戏，掉一个小段。7 = 一周没来掉一小段。"
+            },
+            "max_stacks": {
+              "type": "integer",
+              "range": [
+                1,
+                20
+              ],
+              "label": "最多连掉次数",
+              "description": "一次长时间离线最多掉多少个小段，掉满后不再继续掉。"
+            }
+          }
+        }
+      }
+    },
+    "unlocks": {
+      "type": "object",
+      "description": "解锁表",
+      "required": [
+        "characters"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "characters": {
+          "type": "object",
+          "description": "武将解锁价格：{ 武将id: 奖章价格 }。没写进来的武将默认解锁。",
+          "additionalProperties": {
+            "type": "number",
+            "range": [
+              0,
+              100000
+            ]
+          }
+        }
+      }
+    },
+    "titles": {
+      "type": "array",
+      "description": "称号表。require 是自动解锁条件（可组合），cost 大于 0 时也可以直接用奖章买。",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "desc",
+          "cost",
+          "require"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "内部 id"
+          },
+          "name": {
+            "type": "string",
+            "description": "称号显示名"
+          },
+          "desc": {
+            "type": "string",
+            "description": "获得条件说明"
+          },
+          "cost": {
+            "type": "number",
+            "range": [
+              0,
+              100000
+            ],
+            "description": "直接用奖章购买的价格；0 = 只能靠条件自动解锁（不填也没关系）。",
+            "label": "价格（奖章）"
+          },
+          "require": {
+            "type": "object",
+            "description": "自动解锁条件，可只填其中几项（全部满足才解锁）",
+            "additionalProperties": false,
+            "properties": {
+              "wins": {
+                "type": "integer",
+                "range": [
+                  0,
+                  100000
+                ],
+                "description": "累计胜场 ≥"
+              },
+              "streak": {
+                "type": "integer",
+                "range": [
+                  0,
+                  100000
+                ],
+                "description": "最高连胜 ≥"
+              },
+              "grade": {
+                "type": "string",
+                "description": "打出过该评价（如 SSS）"
+              },
+              "rank": {
+                "type": "string",
+                "description": "段位达到该 id（如 gold）"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
