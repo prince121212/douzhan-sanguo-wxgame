@@ -84,7 +84,11 @@ func cover_rect(tex_size: Vector2, overscan := 1.0) -> Rect2:
 
 
 func _load_fonts() -> void:
-	# 全部使用 SIL OFL 字体，可随游戏分发
+	# 三个字体都是「子集」，只含代码里用到的字（体积 0.4~0.7MB，全量要 17~24MB）。
+	# 子集由 _tools/build_fonts.py 生成，加了新文案要重跑一次。
+	#
+	# 重要：微信小游戏里 OS.get_system_fonts() 返回 0 个，SystemFont 也认不出字，
+	# 所以「靠系统字体兜底」在小游戏里是不存在的。缺字只能靠 fallbacks 链。
 	var noto := _try_font(["res://assets/fonts/NotoSansSC.ttf"])
 	if noto:
 		var fv := FontVariation.new()
@@ -101,11 +105,13 @@ func _load_fonts() -> void:
 		font_title = font_ui
 	if font_brush == null:
 		font_brush = font_title
-	# 缺字时回退到思源黑体
+	# 缺字时回退到思源黑体（书法字体字形最少，最需要兜底）
 	if font_title is FontFile and font_ui:
 		font_title.fallbacks = [font_ui]
-	if font_brush is FontFile and font_title:
-		font_brush.fallbacks = [font_title, font_ui]
+	if font_brush is FontFile and font_ui:
+		font_brush.fallbacks = [font_ui]
+		if font_title != font_ui:
+			font_brush.fallbacks = [font_title, font_ui]
 
 
 func _try_font(paths: Array) -> Font:

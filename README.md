@@ -115,6 +115,23 @@ godot/config/
 └── schema/*.json      数据结构定义（AI 和校验器的共同依据）
 ```
 
+### 字体（子集）
+
+`godot/assets/fonts/` 里三个字体都是**子集**，只含代码里用到的字（合计约 1.6MB；
+全量要 17~24MB）。**新增文案后必须重跑**：
+
+```bash
+python3 _tools/build_fonts.py          # 重新生成 + 自检
+python3 _tools/build_fonts.py --check  # 只检查
+```
+
+不跑会怎样：微信小游戏里没有系统字体兜底（`OS.get_system_fonts()` 返回 0），
+新加的字会变成豆腐块。桌面 Godot 反而看不出来，所以这个坑只在微信端暴露。
+`export_wxgame.sh` 第一步就会校验字体，缺字直接中止。
+
+写文案时：正文/小字说明用 `UiKit.label(..., title=false)`（思源黑体，字形最全）；
+标题/印章/技名才用默认的书法字体。
+
 改数值只需改 JSON，然后：
 
 ```bash

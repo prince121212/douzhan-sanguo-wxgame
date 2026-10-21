@@ -123,7 +123,7 @@ func _refresh() -> void:
 		h.add_theme_constant_override("separation", 10)
 		var unlocked: bool = tt["unlocked"]
 		var col := Color(1, 0.9, 0.6) if unlocked else Color(0.62, 0.58, 0.52)
-		var nm := UiKit.label(str(tt["name"]), 26, col, true, 4)
+		var nm := UiKit.label(str(tt["name"]), 26, col, false, 4)
 		nm.custom_minimum_size = Vector2(150, 0)
 		h.add_child(nm)
 		var d := UiKit.label(str(tt["desc"]), 17, Color(0.68, 0.62, 0.55), false, 2)
@@ -133,7 +133,7 @@ func _refresh() -> void:
 		var tid := str(tt["id"])
 		if unlocked:
 			if equipped == tid:
-				var tag := UiKit.label("佩戴中", 20, Color(0.6, 0.95, 0.6), true, 3)
+				var tag := UiKit.label("佩戴中", 20, Color(0.6, 0.95, 0.6), false, 3)
 				tag.custom_minimum_size = Vector2(110, 0)
 				h.add_child(tag)
 			else:
@@ -169,7 +169,7 @@ func _refresh() -> void:
 		ep.custom_minimum_size = Vector2(250, 0)
 		h.add_child(ep)
 		if unlocked:
-			var tag := UiKit.label("已解锁", 20, Color(0.6, 0.95, 0.6), true, 3)
+			var tag := UiKit.label("已解锁", 20, Color(0.6, 0.95, 0.6), false, 3)
 			tag.custom_minimum_size = Vector2(110, 0)
 			h.add_child(tag)
 		else:

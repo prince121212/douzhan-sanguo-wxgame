@@ -29,6 +29,13 @@ if [ ! -x "$GODOT" ]; then
 fi
 command -v brotli >/dev/null || { echo "❌ 缺少 brotli（brew install brotli）"; exit 1; }
 
+echo "▶ 0/4 校验字体子集（缺字会在微信里变成豆腐块）"
+python3 "$ROOT/_tools/build_fonts.py" --check >/dev/null 2>&1 || {
+  echo "❌ 字体缺字！请先跑：python3 _tools/build_fonts.py"
+  python3 "$ROOT/_tools/build_fonts.py" --check | tail -6
+  exit 1
+}
+
 echo "▶ 1/4 导出 Web 版"
 mkdir -p "$BUILD"
 # Godot 导出时会把 project.godot 重写成默认模板（删掉等于默认值的项）。

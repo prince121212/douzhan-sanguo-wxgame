@@ -86,14 +86,37 @@ godot/config/
 ### 5. Color 用 `#RRGGBB` 字符串
 JSON 没有 Color 类型。`Cfg.to_color()` 负责转换，写错格式会显示成品红色（一眼能看出来）。
 
-### 6. 成长系统的数值也在配置里
+### 6. 新增文案后必须重跑字体子集
+
+三个字体都是**子集**（只含代码里用到的字，0.4~0.7MB；全量要 17~24MB）。
+
+**微信小游戏里 `OS.get_system_fonts()` 返回 0 个，`SystemFont` 也认不出字**，
+所以没有系统字体兜底 —— 缺字直接显示成豆腐块 / 乱码。桌面 Godot 看不出来
+（macOS 系统字体会偷偷兜住），所以这个问题只在微信端暴露。
+
+```bash
+python3 _tools/build_fonts.py          # 重新生成子集 + 自检
+python3 _tools/build_fonts.py --check  # 只检查（export_wxgame.sh 会自动跑）
+```
+
+`export_wxgame.sh` 第 0 步就会校验字体，缺字直接中止导出。
+
+字体来源（全量，不入库，只在本地生成时用）：
+`../斗战三国/assets/fonts/{NotoSansSC,serif,brush}.ttf`
+
+写文案的取舍：
+- **正文 / 小字说明** → `UiKit.label(..., title=false)`，用 `font_ui`（思源黑体，字形最全）
+- **标题 / 印章 / 技名** → 默认 `title=true`，用 `font_title` / `font_brush`（书法感）
+- 书法字体字形少，别拿它画大段说明文字
+
+### 7. 成长系统的数值也在配置里
 评分权重、分数线、段位门槛、奖章表、掉段天数全部在 `config/progression.json`。
 **不要**在 `progress.gd` 里写字面量——它是唯一读这份配置的地方（通过 `Cfg.prog()`）。
 
 新增段位/评价：只改 `progression.json` 的 `rank.ranks` / `score.grades`，
 再在 `medals.by_grade_difficulty` 里补对应的一行（校验器会检查是否漏行）。
 
-### 7. JSON 不能写注释
+### 8. JSON 不能写注释
 说明文字写在 `schema` 的 `description` 里，或者用 `"_comment"` 字段（校验器会跳过 `_` 开头的键）。
 
 ---
