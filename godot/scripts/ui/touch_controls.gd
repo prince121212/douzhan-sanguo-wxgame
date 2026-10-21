@@ -1,7 +1,7 @@
 extends CanvasLayer
 ## 触屏操作（微信小游戏 / 手机）：左手浮动摇杆，右手按钮，顶部暂停。
 ## 只把触摸翻译成 p1_* 按键动作，战斗、AI 和键盘操作都不用改。
-## 观战时没有摇杆和招式按钮，只有跳过、倍速、隐藏界面、暂停。
+## 观战时没有摇杆和招式按钮，只有一个暂停（倍速 / 隐藏界面在暂停面板里）。
 
 const STICK_R := 150.0          # 摇杆底盘半径（设计分辨率，高 1080）
 const KNOB_R := 62.0
@@ -122,13 +122,10 @@ func _touch_down(index: int, pos: Vector2) -> bool:
 		battle.pause_menu.open()
 		return true
 	if not _duel():
+		# 观战只留一个「暂停」，倍速 / 隐藏界面都在暂停面板里设
 		for p in _watch_pills(vs):
 			if p["rect"].grow(10.0).has_point(pos):
-				match p["id"]:
-					"speed":
-						battle.toggle_speed()
-					"hud":
-						battle.toggle_hud()
+				battle.pause_menu.open()
 				return true
 		return false
 	if not _fight_active():
@@ -270,24 +267,19 @@ func _pause_hit(vs: Vector2, pos: Vector2) -> bool:
 	if _duel():
 		return pos.distance_to(_pause_center(vs)) < PAUSE_HIT
 	for p in _watch_pills(vs):
-		if p["id"] == "pause" and p["rect"].grow(10.0).has_point(pos):
+		if p["rect"].grow(10.0).has_point(pos):
 			return true
 	return false
 
 
-## 观战：右下角一排小按钮
+## 观战：右下角只放一个「暂停」。倍速 / 隐藏界面都收进暂停面板里，
+## 免得战斗画面上挂一堆按钮挡视线。
 func _watch_pills(vs: Vector2) -> Array:
-	var out: Array = []
-	var x := vs.x - 40.0
-	var y := vs.y - 40.0 - PILL.y
-	var speed: float = battle.user_speed if battle else 1.0
-	var hud_hidden: bool = battle.hud.user_hidden if battle and battle.hud else false
-	for p in [["pause", "暂 停"], ["hud", "显示界面" if hud_hidden else "隐藏界面"], ["speed", "倍速 ×%s" % str(speed)]]:
-		var w := PILL.x + (40.0 if p[0] != "pause" else 0.0)
-		x -= w
-		out.append({"id": p[0], "text": p[1], "rect": Rect2(x, y, w, PILL.y)})
-		x -= 16.0
-	return out
+	var w := PILL.x
+	return [{
+		"id": "pause", "text": "暂 停",
+		"rect": Rect2(vs.x - 40.0 - w, vs.y - 40.0 - PILL.y, w, PILL.y),
+	}]
 
 
 func _skip_rect(vs: Vector2) -> Rect2:

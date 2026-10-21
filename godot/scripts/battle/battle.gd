@@ -899,10 +899,10 @@ func toggle_speed() -> void:
 	narrate("观战速度 ×%s" % str(user_speed), 0)
 
 
-## 触屏：隐藏 / 显示血条
+## 隐藏 / 显示血条（观战暂停面板里调用；键盘 Tab 也走这里）
 func toggle_hud() -> void:
 	if hud:
-		hud.set_visible_hud(hud.user_hidden)
+		hud.set_visible_hud(hud.user_hidden)   # 当前是隐藏 → 传 true 显示，反之亦然
 
 
 func mode_label() -> String:
