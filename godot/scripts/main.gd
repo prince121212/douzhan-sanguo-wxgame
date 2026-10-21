@@ -53,6 +53,8 @@ func _ready() -> void:
 			var pr := a.substr(7).split(",")
 			Game.p1_id = pr[0]
 			Game.p2_id = pr[1]
+		if a == "--nomount":
+			Game.start_mounted = false
 	for a in args:
 		if a.begins_with("--sim="):
 			Game.sim = true

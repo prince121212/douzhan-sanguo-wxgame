@@ -144,3 +144,13 @@ MP3 编码自带约 25ms 的起始静音，若循环点能听出细微停顿，�
 ## 7. 尚未接入的源素材
 
 - 大招立绘：`斗战三国Q版/大招立绘/guanyu_cutin.png`、`zhaoyun_cutin.png`（1672×941，洋红底未抠），可配合 `ui/banner.png` 使用，本次未处理。
+
+## 战斗特效 `assets/fx/`
+
+| 文件 | 用途 | 来源 |
+|---|---|---|
+| `slash/arc_wide.png` | 斩击月牙（横斩/斜劈/回旋） | CC0 · Cethiel《Slash Effect Collection》 |
+| `slash/arc_thin.png` | 突刺光刃 | 同上 |
+
+素材为纯白 + 亮度在 alpha，靠 shader `scripts/battle/fx/slash_reveal.gdshader`
+的 tint 跟随武将主题色。许可见 `fx/CREDITS.md`，重新生成用 `_tools/build_fx_assets.py`。

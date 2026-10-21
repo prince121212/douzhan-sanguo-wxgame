@@ -238,7 +238,8 @@ func _start_bout(first: bool) -> void:
 		match_elapsed += maxf(0.0, game_time - match_start_time)
 	phase = "intro"
 	cine_busy = false
-	skip_intro = false
+	# 开发：--skipintro 直接进战斗，方便抓特效帧
+	skip_intro = "--skipintro" in OS.get_cmdline_user_args()
 	projectiles.clear()
 	for f in fighters:
 		f.ctrl = null
@@ -1131,8 +1132,8 @@ func _parry(a: Fighter, d: Fighter, _mv: Dictionary) -> void:
 	d.set_pose("attack")
 	d.squash = Vector2(1.15, 0.9)
 	var cp := _contact_point(a, d)
+	# clash_spark 自己已经带一圈冲击环了，这里不再叠加第二个，否则会变成「打靶」
 	vfx.clash_spark(cp, false)
-	vfx.ring(cp, 180.0, Color(1, 0.95, 0.7), false, 10.0, 0.3)
 	vfx.stamp(d.head_global() + Vector2(0, -20), "拆招", Color(0.6, 0.95, 1.0), 72)
 	Sfx.play("parry", 0.0)
 	Sfx.play("clang", 0.0, 1.25)
