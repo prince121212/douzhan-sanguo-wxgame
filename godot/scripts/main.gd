@@ -7,7 +7,10 @@ const SCREENS := {
 	"battle": "res://scripts/battle/battle.gd",
 }
 
+const CONSOLE_PATH := "res://tools/console.gd"
+
 var current: Node = null
+var console: Node = null
 var fade_layer: CanvasLayer
 var fade_rect: ColorRect
 var busy := false
@@ -25,6 +28,14 @@ func _ready() -> void:
 	fade_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	fade_layer.add_child(fade_rect)
+	# 开发控制台：只在桌面版加载（tools/ 不进微信包，web/mobile 下也不加载）
+	if not OS.has_feature("web") and not OS.has_feature("mobile") and ResourceLoader.exists(CONSOLE_PATH):
+		var c := CanvasLayer.new()
+		c.set_script(load(CONSOLE_PATH))
+		c.name = "DevConsole"
+		add_child(c)
+		console = c
+
 	var args := OS.get_cmdline_user_args()
 	_fps_log = "--fps" in args
 	for a in args:
@@ -99,6 +110,10 @@ func _fit_window() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var k := event as InputEventKey
+		if k.keycode == KEY_F10 and console:
+			console.toggle()
+			get_viewport().set_input_as_handled()
+			return
 		if k.keycode == KEY_F11 or (k.keycode == KEY_ENTER and k.alt_pressed) or (k.keycode == KEY_F and k.meta_pressed and k.ctrl_pressed):
 			var full := DisplayServer.window_get_mode() == DisplayServer.WINDOW_MODE_FULLSCREEN
 			DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if full else DisplayServer.WINDOW_MODE_FULLSCREEN)
