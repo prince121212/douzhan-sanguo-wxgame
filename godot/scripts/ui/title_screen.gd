@@ -37,8 +37,9 @@ func _ready() -> void:
 	if randf() < 0.4:
 		right_id = "lvbu" if left_id != "lvbu" else "zhangfei"
 	bg = TextureRect.new()
-	if ResourceLoader.exists("res://assets/bg/hulaoguan.png"):
-		bg.texture = load("res://assets/bg/hulaoguan.png")
+	var bg_path: String = Cfg.arena().get("map", "")
+	if bg_path != "" and ResourceLoader.exists(bg_path):
+		bg.texture = load(bg_path)
 	bg.stretch_mode = TextureRect.STRETCH_SCALE
 	# 铺满视口（宽屏下比 1920 更宽），多出的部分居中裁掉，避免右侧露黑
 	_cover_bg()
@@ -185,7 +186,7 @@ func _draw_title() -> void:
 		var u := 1.0 - float(i) / 31.0
 		brush.append(Vector2(lerp(-640.0, 640.0, u) * e, 110.0 + cos(u * 29.0) * 16.0))
 	c.draw_colored_polygon(brush, Color(0.06, 0.03, 0.02, 0.82))
-	var text := "斗战三国"
+	var text := Cfg.ui_text("title", "斗战三国")
 	var size := 190
 	var spacing := 26.0
 	var total := 0.0
@@ -206,7 +207,7 @@ func _draw_title() -> void:
 		c.draw_string(f, pos, text[i], HORIZONTAL_ALIGNMENT_LEFT, -1, size, Color(1.0, 0.86, 0.45, ck))
 		x += ws[i] + spacing
 	c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-	var sub := "虎牢关 · 斗将"
+	var sub := Cfg.ui_text("subtitle", "虎牢关 · 斗将")
 	var sw := f.get_string_size(sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 52).x
 	var sa: float = clamp((t - 0.8) / 0.5, 0.0, 1.0)
 	c.draw_string_outline(f, Vector2(-sw * 0.5, 175), sub, HORIZONTAL_ALIGNMENT_LEFT, -1, 52, 10, Color(0, 0, 0, sa))

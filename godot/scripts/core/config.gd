@@ -27,6 +27,8 @@ var arenas: Dictionary = {}
 var arena_default := "hulaoguan"
 
 var _loaded := false
+var _had_error := false      # 任何配置读取/解析失败都会置位，启动横幅据此报错
+var _bal_cache := {}         # 路径 -> 值，避免每帧 split(".") 分配内存
 
 
 func _ready() -> void:
@@ -36,13 +38,19 @@ func _ready() -> void:
 ## 重新读全部配置（游戏里按 F9 可热重载，调平衡不用重启）
 func reload() -> void:
 	var t0 := Time.get_ticks_msec()
+	_had_error = false
+	_bal_cache.clear()
 	balance = _read("balance.json")
 	_load_characters()
 	_load_moves()
 	_load_arenas()
 	_loaded = true
-	print("Cfg: 配置已加载（%d 武将 / %d 招式组 / %d 战场 / %d ms）" % [
-		characters.size(), moves.size(), arenas.size(), Time.get_ticks_msec() - t0])
+	var ok := not _had_error and characters.size() > 0 and moves.size() > 0 and arenas.size() > 0
+	print("%s Cfg: 配置已加载（%d 武将 / %d 招式组 / %d 战场 / %d ms）" % [
+		"✅" if ok else "❌", characters.size(), moves.size(), arenas.size(),
+		Time.get_ticks_msec() - t0])
+	if not ok:
+		print("❌❌❌ 配置不完整！游戏可能显示异常。请运行 python3 _tools/check_config.py ❌❌❌")
 
 
 # ---------------------------------------------------------------- 读取工具
@@ -51,6 +59,7 @@ func _read(rel: String) -> Dictionary:
 	var path := DIR + rel
 	if not FileAccess.file_exists(path):
 		push_error("Cfg: 缺少配置文件 " + path)
+		_had_error = true
 		return {}
 	var f := FileAccess.open(path, FileAccess.READ)
 	var txt := f.get_as_text()
@@ -58,9 +67,11 @@ func _read(rel: String) -> Dictionary:
 	var parsed = JSON.parse_string(txt)
 	if parsed == null:
 		push_error("Cfg: %s 解析失败（JSON 语法错误？）" % path)
+		_had_error = true
 		return {}
 	if parsed is not Dictionary:
 		push_error("Cfg: %s 顶层必须是对象" % path)
+		_had_error = true
 		return {}
 	return parsed
 
@@ -88,6 +99,30 @@ func _load_characters() -> void:
 	for id in characters:
 		if not (id in character_order):
 			character_order.append(id)
+	# 兜底：配置坏了/空了也要能启动，否则会引发几十条连环报错，根本看不出根因
+	if characters.is_empty():
+		push_error("Cfg: characters.json 没有可用武将，启用内置兜底武将（请修配置后重新导出！）")
+		_had_error = true
+		print("❌❌❌ Cfg 致命错误：characters.json 为空或解析失败，已启用兜底武将。请修好配置！ ❌❌❌")
+		var fb := _fallback_character()
+		characters["zhaoyun"] = fb
+		character_order = ["zhaoyun"]
+
+
+## 内置兜底武将：只在配置彻底坏掉时用，保证游戏能启动并显示错误，而不是崩成一团
+func _fallback_character() -> Dictionary:
+	return {
+		"name": "配置错误", "zi": "!", "home": "", "call": "配置错误", "epithet": "请检查 config/characters.json",
+		"faction": "群", "weapon": "spear", "weapon_name": "枪", "horse": "马",
+		"color": Color.MAGENTA, "color2": Color.WHITE,
+		"stats": {"wu": 90, "tong": 90, "su": 90, "dan": 90},
+		"hp": 1200, "size": 1.0,
+		"ult": {"id": "qijin", "name": "配置错误", "desc": "config/characters.json 解析失败"},
+		"ai": {"aggression": 0.5, "patience": 0.5, "parry": 0.5, "dodge": 0.5, "combo": 0.5,
+			"jump": 0.2, "feint": 0.2, "zone": 0.0, "honor": 0.5, "taunt": 0.3, "ult_style": "drama"},
+		"lines": {"self": "配置错误", "call": "配置错误", "taunt": ["配置错误"], "ult": "配置错误",
+			"win": ["配置错误"], "lose": "配置错误"},
+	}
 
 
 func _convert_character(d: Dictionary) -> Dictionary:
@@ -122,6 +157,9 @@ func _load_moves() -> void:
 		for stance in ["stand", "mounted"]:
 			if raw.has(stance):
 				moves[weapon + "|" + stance] = raw[stance]
+	if moves.is_empty():
+		push_error("Cfg: moves/*.json 没有可用招式表（请修配置后重新导出！）")
+		_had_error = true
 
 
 ## 取某兵器某姿态的稀疏招式表（未叠加 DEFAULTS）
@@ -164,17 +202,48 @@ func arena(id := "") -> Dictionary:
 	return arenas.get(key, arenas.get(arena_default, {}))
 
 
+## 界面文案/阵营配色（来自 arena 的 ui 段，换主题时一起换）
+func ui() -> Dictionary:
+	return arena().get("ui", {})
+
+
+func ui_text(key: String, fallback := "") -> String:
+	return str(ui().get(key, fallback))
+
+
+func faction_color(fac: String) -> Color:
+	var table: Dictionary = ui().get("faction_colors", {})
+	if table.has(fac):
+		return to_color(table[fac])
+	return Color(0.4, 0.4, 0.4)
+
+
+## 镜头默认注视点（按地图尺寸比例，缺省 0.5,0.595 = 原 836,560 的位置）
+func camera_focus(map_size: Vector2) -> Vector2:
+	var f = arena().get("camera_focus", [0.5, 0.595])
+	if f is Array and f.size() >= 2:
+		return Vector2(float(f[0]) * map_size.x, float(f[1]) * map_size.y)
+	return map_size * 0.5
+
+
 # ---------------------------------------------------------------- 便捷取值
 
 ## 平衡参数：Cfg.bal("round.time_limit_duel", 180.0)
+## 带缓存：这条路径在战斗每帧都会调用，split(".") 每次都会分配内存。
 func bal(path: String, default_value = null):
+	if _bal_cache.has(path):
+		return _bal_cache[path]
 	var cur = balance
+	var found := true
 	for part in path.split("."):
 		if cur is Dictionary and cur.has(part):
 			cur = cur[part]
 		else:
-			return default_value
-	return cur
+			found = false
+			break
+	var result = cur if found else default_value
+	_bal_cache[path] = result
+	return result
 
 
 func bal_float(path: String, default_value := 0.0) -> float:

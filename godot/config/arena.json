@@ -83,6 +83,22 @@
 					"ray_a": 0.05,
 					"motes": 140
 				}
+			},
+			"camera_focus": [
+				0.5,
+				0.595
+			],
+			"ui": {
+				"title": "斗战三国",
+				"subtitle": "虎牢关 · 斗将",
+				"select_watch": "观战 · 擂台",
+				"select_duel": "单挑 · 点将",
+				"faction_colors": {
+					"蜀": "#26A63F",
+					"魏": "#3359BF",
+					"吴": "#CC4033",
+					"群": "#8C268C"
+				}
 			}
 		}
 	}

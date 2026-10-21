@@ -24,8 +24,9 @@ func _ready() -> void:
 	if picks[0] == picks[1]:
 		picks[1] = "lvbu" if picks[0] != "lvbu" else "zhaoyun"
 	bg_rect = TextureRect.new()
-	if ResourceLoader.exists("res://assets/bg/hulaoguan.png"):
-		bg_rect.texture = load("res://assets/bg/hulaoguan.png")
+	var bg_path: String = Cfg.arena().get("map", "")
+	if bg_path != "" and ResourceLoader.exists(bg_path):
+		bg_rect.texture = load(bg_path)
 	bg_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	# 铺满视口（宽屏下比 1920 更宽），否则右侧会露出清屏底色
 	if bg_rect.texture:
@@ -35,7 +36,7 @@ func _ready() -> void:
 	bg_rect.modulate = Color(0.42, 0.36, 0.32)
 	add_child(bg_rect)
 	var watch := Game.mode == Game.Mode.WATCH
-	head_lbl = UiKit.label("观战 · 虎牢关擂台" if watch else "单挑 · 点将", 64, Color(1.0, 0.85, 0.45), true, 10)
+	head_lbl = UiKit.label(Cfg.ui_text("select_watch", "观战 · 擂台") if watch else Cfg.ui_text("select_duel", "单挑 · 点将"), 64, Color(1.0, 0.85, 0.45), true, 10)
 	head_lbl.position = Vector2(Game.view_size().x * 0.5 - 260, 26 + Game.ui_offset_y())
 	head_lbl.size = Vector2(520, 80)
 	head_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

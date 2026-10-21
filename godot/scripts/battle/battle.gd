@@ -112,7 +112,7 @@ func _build() -> void:
 	cam.set_script(preload("res://scripts/battle/camera_director.gd"))
 	cam.battle = self
 	cam.map_rect = map_rect
-	cam.base_pos = map_rect.get_center()
+	cam.base_pos = Cfg.camera_focus(map_rect.size)
 	world.add_child(cam)
 	post = CanvasLayer.new()
 	post.set_script(preload("res://scripts/battle/post_fx.gd"))

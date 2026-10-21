@@ -105,6 +105,17 @@ def check_moves():
     defaults = load(moves_dir / "_defaults.json").get("defaults", {})
     if not defaults:
         err("moves/_defaults.json 缺少 defaults")
+    else:
+        # 默认值本身也要校验：它是最容易改错又最不容易被发现的地方
+        # （改错一个键名 → 所有招式一起静默回落到旧值）
+        check_keys("moves/_defaults.json", defaults, move_props)
+        for k, v in defaults.items():
+            spec = move_props.get(k)
+            if spec:
+                check_type("moves/_defaults.json", k, v, spec)
+                check_range("moves/_defaults.json", k, v, spec)
+        # 必填字段不能只存在于默认值里就"看起来"齐全——必须在每个招式里显式给出？
+        # 不必：默认值提供合法初值正是设计意图。但默认值自己不能缺 required 里的类型
 
     weapons = set()
     total = 0

@@ -1,9 +1,9 @@
 extends Node2D
-## 虎牢关战场：底图、两侧助威的兵卒、帅旗、飞尘、光束、时辰光照。
+## 战场：底图、两侧助威的兵卒、帅旗、飞尘、光束、时辰光照（全部配置驱动）。
 
 # 地图/地面/尺寸/时辰预设全部来自 config/arena.json（Cfg.arena()）。
 # 换主题 = 换配置里的一个 arena 条目 + 放好贴图，代码不用动。
-const DEFAULT_ARENA := "hulaoguan"
+# 默认战场由 Cfg.arena_default 决定（arena.json 的 default 字段）。
 const TROOP_SHADER := preload("res://shaders/troop_tint.gdshader")
 const FLAG_SHADER := preload("res://shaders/flag_wave.gdshader")
 const Flag := preload("res://scripts/battle/fx/war_flag.gd")
@@ -35,7 +35,7 @@ func _vec(v, fallback: Vector2) -> Vector2:
 func build(p_battle: Node, p_actors: Node2D, preset_key: String) -> void:
 	battle = p_battle
 	actors = p_actors
-	arena_def = Cfg.arena(Game.arena_id if Game.arena_id != "" else DEFAULT_ARENA)
+	arena_def = Cfg.arena(Game.arena_id)
 	map_size = _vec(arena_def.get("size", [1672, 941]), Vector2(1672, 941))
 	var presets: Dictionary = arena_def.get("presets", {})
 	preset = presets.get(preset_key, presets.get("wu", {}))

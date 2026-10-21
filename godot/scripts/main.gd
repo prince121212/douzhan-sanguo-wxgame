@@ -35,6 +35,8 @@ func _ready() -> void:
 			DirAccess.make_dir_recursive_absolute(Game.event_shots)
 		if a.begins_with("--rounds="):
 			Game.rounds_to_win = int(a.substr(9))
+		if a.begins_with("--arena="):
+			Game.arena_id = a.substr(8)
 		if a.begins_with("--pair="):
 			var pr := a.substr(7).split(",")
 			Game.p1_id = pr[0]
@@ -138,6 +140,8 @@ func _has_pair(args: PackedStringArray) -> bool:
 	for a in args:
 		if a.begins_with("--rounds="):
 			Game.rounds_to_win = int(a.substr(9))
+		if a.begins_with("--arena="):
+			Game.arena_id = a.substr(8)
 		if a.begins_with("--pair="):
 			return true
 	return false

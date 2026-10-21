@@ -272,7 +272,7 @@ func _draw_panel(c: Control, sz: Vector2, f: Fighter, i: int, drop: float) -> vo
 		c.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 	c.draw_arc(portrait_c, pr + 3.0, 0.0, TAU, 48, Color(0.25, 0.08, 0.03), 4.0)
 	var fac: String = f.def["faction"]
-	var fcol: Color = {"蜀": Color(0.15, 0.55, 0.25), "魏": Color(0.2, 0.35, 0.75), "吴": Color(0.8, 0.25, 0.2), "群": Color(0.55, 0.15, 0.55)}.get(fac, Color(0.4, 0.4, 0.4))
+	var fcol: Color = Cfg.faction_color(fac)
 	var fp := portrait_c + Vector2(pr * 0.72 * (1.0 if not flip else -1.0), pr * 0.72)
 	c.draw_circle(fp, 20.0, fcol)
 	c.draw_arc(fp, 20.0, 0.0, TAU, 24, Color(1, 0.85, 0.4), 2.5)
