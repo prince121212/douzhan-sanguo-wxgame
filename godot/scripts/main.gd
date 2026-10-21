@@ -110,7 +110,9 @@ func _fit_window() -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo:
 		var k := event as InputEventKey
-		if k.keycode == KEY_F10 and console:
+		# 数值控制台：F8 / F10 都能开
+		# （macOS 上 F10 默认是系统静音键，不按 Fn 会被系统吃掉，所以给 F8 做备用）
+		if console and (k.keycode == KEY_F8 or k.keycode == KEY_F10):
 			console.toggle()
 			get_viewport().set_input_as_handled()
 			return

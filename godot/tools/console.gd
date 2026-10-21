@@ -10,7 +10,7 @@ extends CanvasLayer
 ## 为什么绕这一圈：数值直接影响手感，误碰一个数字就可能毁掉整局体验。
 ## 「解锁 → 改 → 确定 → 关锁」四步保证每次改动都是有意为之。
 ##
-## 开关：F10
+## 开关：F8 或 F10（macOS 上 F10 默认是系统静音键，需按 Fn；F8 无冲突）
 ## 字段定义直接读 config/schema/*.schema.json —— schema 改了控制台自动跟着变。
 ## ---------------------------------------------------------------------------
 
@@ -83,7 +83,7 @@ func _build() -> void:
 	head.add_child(title)
 
 	var hint := Label.new()
-	hint.text = "F10 开关 · 数值改动需「解锁 → 确定 → 关锁」才生效"
+	hint.text = "F8 / F10 开关 · 数值改动需「解锁 → 确定 → 关锁」才生效"
 	hint.add_theme_font_override("font", Game.font_ui)
 	hint.add_theme_font_size_override("font_size", 18)
 	hint.add_theme_color_override("font_color", Color(0.75, 0.7, 0.62))
@@ -548,6 +548,6 @@ func _unhandled_input(event: InputEvent) -> void:
 		if k.keycode == KEY_ESCAPE:
 			_on_close()
 			get_viewport().set_input_as_handled()
-		elif k.keycode == KEY_F10:
+		elif k.keycode == KEY_F8 or k.keycode == KEY_F10:
 			toggle()
 			get_viewport().set_input_as_handled()
