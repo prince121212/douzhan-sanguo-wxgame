@@ -156,7 +156,8 @@ func _refresh() -> void:
 				h.add_child(lk)
 		title_box.add_child(h)
 	# 武将解锁
-	for id in Roster.ids():
+	for cid in Roster.ids():
+		var id: String = cid
 		var d := Roster.get_def(id)
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 10)

@@ -331,7 +331,7 @@ func _refresh() -> void:
 		r[1].modulate = Color(1, 1, 1) if Game.watch_rule == r[0] else Color(0.6, 0.6, 0.6)
 	mount_btn.text = "开局：骑马出阵" if Game.start_mounted else "开局：步战"
 	if not watch and not Progress.difficulty_gate_ok(Game.difficulty):
-		slot_label.text = "当前段位下，「%s」难度不计分（需「%s」及以上）" % [
+		slot_label.text += "　｜　「%s」难度当前不计分（需「%s」及以上）" % [
 			Game.difficulty_name(Game.difficulty),
 			Game.difficulty_name(Cfg.prog_int("rank.difficulty_gate.min_difficulty", 1))]
 
