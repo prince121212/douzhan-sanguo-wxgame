@@ -31,7 +31,15 @@ command -v brotli >/dev/null || { echo "❌ 缺少 brotli（brew install brotli�
 
 echo "▶ 1/4 导出 Web 版"
 mkdir -p "$BUILD"
+# Godot 导出时会把 project.godot 重写成默认模板（删掉等于默认值的项）。
+# 内容等价但会让 git 每次都有脏 diff，所以导出前后各存一份、导出后还原。
+PROJ_CFG="$ROOT/godot/project.godot"
+PROJ_BAK="$(mktemp)"
+cp "$PROJ_CFG" "$PROJ_BAK"
 (cd "$ROOT/godot" && "$GODOT" --headless --path . --export-release "Web" "$BUILD/index.html" 2>&1 | tail -3)
+cp "$PROJ_BAK" "$PROJ_CFG"
+rm -f "$PROJ_BAK"
+echo "   （已还原 project.godot，避免 Godot 重写产生的无意义 diff）"
 
 echo "▶ 2/4 Brotli 压缩资源包"
 (cd "$BUILD" && brotli -q 11 -f --no-copy-stat -o index.pck.br.new index.pck)
