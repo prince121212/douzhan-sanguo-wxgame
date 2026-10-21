@@ -9,6 +9,8 @@ const DEAD := 0.18              # 中心死区
 const RUN_AT := 0.9             # 推到这么远就疾跑（骑马就是纵马）
 const HIT_GROW := 1.22          # 按钮判定圈比画出来的大一点，手指不用按得很准
 const PILL := Vector2(150, 64)
+const PAUSE_R := 50.0           # 暂停按钮半径（战斗右上角，角色头像下方）
+const PAUSE_HIT := 64.0         # 暂停按钮判定半径
 
 ## 右手按钮：off 是相对屏幕右下角的位置。大按钮轻击在拇指下，其余沿弧线排开。
 const FIGHT_BUTTONS := [
@@ -257,15 +259,16 @@ func _stick_home(vs: Vector2) -> Vector2:
 	return Vector2(STICK_R + 110.0, vs.y - STICK_R - 110.0)
 
 
+## 战斗暂停按钮：放在右上角角色头像正下方（HUD 头像圆心 x = vs.x - 108，底边约 y=166）
 func _pause_center(vs: Vector2) -> Vector2:
 	if _duel():
-		return Vector2(vs.x * 0.5, 236.0)
+		return Vector2(vs.x - 108.0, 232.0)
 	return Vector2.ZERO
 
 
 func _pause_hit(vs: Vector2, pos: Vector2) -> bool:
 	if _duel():
-		return pos.distance_to(_pause_center(vs)) < 52.0
+		return pos.distance_to(_pause_center(vs)) < PAUSE_HIT
 	for p in _watch_pills(vs):
 		if p["id"] == "pause" and p["rect"].grow(10.0).has_point(pos):
 			return true
@@ -388,11 +391,32 @@ func _draw_button(c: Control, vs: Vector2, b: Dictionary, dim: float) -> void:
 		_label(c, sub, Vector2(p.x, p.y + rr * 0.5), 19 if rr < 90.0 else 22, Color(1.0, 0.86, 0.6, 0.85 * a))
 
 
+## 暂停按钮：木质圆牌 + 双层金环 + 呼吸光晕，中间两根圆角竖条
 func _draw_pause(c: Control, p: Vector2) -> void:
-	c.draw_circle(p, 34.0, Color(0.07, 0.04, 0.03, 0.62))
-	c.draw_arc(p, 34.0, 0.0, TAU, 40, Color(UiKit.GOLD.r, UiKit.GOLD.g, UiKit.GOLD.b, 0.8), 3.0, true)
-	c.draw_rect(Rect2(p.x - 12.0, p.y - 14.0, 8.0, 28.0), Color(1, 0.92, 0.75, 0.95))
-	c.draw_rect(Rect2(p.x + 4.0, p.y - 14.0, 8.0, 28.0), Color(1, 0.92, 0.75, 0.95))
+	var r := PAUSE_R
+	var pulse := 0.5 + 0.5 * sin(t * 2.2)
+	# 外圈柔光（轻呼吸，提示可点）
+	c.draw_circle(p, r + 7.0 + pulse * 3.0, Color(1.0, 0.78, 0.35, 0.10 + 0.05 * pulse))
+	# 底盘：径向渐变感的同心圆
+	c.draw_circle(p, r, Color(0.10, 0.05, 0.03, 0.88))
+	c.draw_circle(p, r - 5.0, Color(0.20, 0.09, 0.05, 0.92))
+	c.draw_circle(p, r - 12.0, Color(0.12, 0.05, 0.03, 0.95))
+	# 双层金环
+	c.draw_arc(p, r, 0.0, TAU, 64, Color(UiKit.GOLD.r, UiKit.GOLD.g, UiKit.GOLD.b, 0.95), 4.0, true)
+	c.draw_arc(p, r - 8.0, 0.0, TAU, 64, Color(1.0, 0.86, 0.5, 0.45), 2.0, true)
+	# 两根圆角竖条（暂停符号）：矩形 + 上下半圆帽 = 胶囊形
+	var bar_w := 13.0
+	var bar_h := 44.0
+	var gap := 9.0
+	var col := Color(1.0, 0.94, 0.78, 0.97)
+	for sx in [-1.0, 1.0]:
+		var cx: float = p.x + sx * (gap + bar_w * 0.5)
+		var half := bar_w * 0.5
+		c.draw_rect(Rect2(cx - half, p.y - bar_h * 0.5 + half, bar_w, bar_h - bar_w), col)
+		c.draw_circle(Vector2(cx, p.y - bar_h * 0.5 + half), half, col)
+		c.draw_circle(Vector2(cx, p.y + bar_h * 0.5 - half), half, col)
+		# 高光：竖条左侧一条细亮线
+		c.draw_rect(Rect2(cx - half + 2.0, p.y - bar_h * 0.5 + half, 2.0, bar_h - bar_w), Color(1, 1, 1, 0.32))
 
 
 func _draw_pill(c: Control, r: Rect2, text: String, accent: bool) -> void:

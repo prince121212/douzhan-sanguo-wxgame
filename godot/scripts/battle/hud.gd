@@ -284,6 +284,9 @@ func _draw_panel(c: Control, sz: Vector2, f: Fighter, i: int, drop: float) -> vo
 		var pop: float = 1.0 + max(0.0, combo_t[i] - 1.2) * 2.0
 		var cx := 120.0 if not flip else sz.x - 120.0
 		var cy := 300.0 + drop
+		# 触屏版右上角有暂停按钮（头像下方），敌方连击数字往下让一让，免得压在一起
+		if flip and Game.touch_ui:
+			cy += 130.0
 		c.draw_set_transform(Vector2(cx, cy), -0.08 if not flip else 0.08, Vector2(pop, pop))
 		var num := str(combo_show[i])
 		var nwid := font.get_string_size(num, HORIZONTAL_ALIGNMENT_LEFT, -1, 92).x
