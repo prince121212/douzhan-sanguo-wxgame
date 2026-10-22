@@ -3,6 +3,7 @@ extends Node2D
 
 const SlashArc := preload("res://scripts/battle/fx/slash_arc.gd")
 const SlashTex := preload("res://scripts/battle/fx/slash_tex.gd")
+const SlashRibbon := preload("res://scripts/battle/fx/slash_ribbon.gd")
 const ImpactRing := preload("res://scripts/battle/fx/impact_ring.gd")
 const ThrustStreak := preload("res://scripts/battle/fx/thrust_streak.gd")
 const SparkBurst := preload("res://scripts/battle/fx/spark_burst.gd")
@@ -93,25 +94,34 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 			s.grow = 1.10
 			_add(s)
 		"slash", "slash_up", "slash_down":
-			# 贴图月牙 + 旋转扫出。贴图纯白，modulate 成武将主题色。
-			# 为什么不用程序化弧线：几何弧缺笔触、缺粗细变化，一眼假。
-			var sp := SlashTex.new()
-			# 骑战时角色更高、镜头更远，刀光按同一比例会显得过大，收一点
-			sp.radius = reach * (0.52 if f.mounted else 0.62) * ds
-			# 弧心放在身前：月牙贴着兵刃扫过的位置，而不是套在角色身上
-			sp.position = center + Vector2(f.facing * reach * 0.30 * ds,
-				f.body_height() * 0.12 * ds)
-			# 素材的弧默认朝右前。面向左时整体转 180°，刀光才会跟着甩到左边。
-			sp.flip = f.facing < 0
-			# 刀光的弧和招式的判定弧对齐：横斩横着扫，下劈从上往下扫。
-			# mv["arc"] 就是判定用的 [起角, 终角]，这样"看得见的"和"打得到的"一致。
+			# 火焰刀光：沿判定弧生成一条月牙带，shader 里做「内缘烧穿 + 外缘白热」。
+			# 为什么不用贴图：贴图的弧度/粗细是固定的，和招式判定弧对不上；
+			# 月牙带直接吃 mv["arc"]，看得见的弧就是打得到的弧。
+			var sp := SlashRibbon.new()
+			# 半径≈兵刃长度：弧从刀尖起，绕到角色身前
+			sp.radius = reach * (0.52 if f.mounted else 0.55) * ds
+			sp.width = reach * (0.19 if f.mounted else 0.20) * ds * (1.0 + ratio * 0.2)
 			var arc: Array = mv["arc"]
-			sp.set_arc_deg(float(arc[0]), float(arc[1]))
-			# 普通混合而不是加法：黄沙很亮，加法会把主题色冲成一片白
-			# 主题色占比高一点：纯白在浅色骑装上会和角色糊在一起
-			sp.color = col.lerp(Color.WHITE, 0.42)
-			sp.life = clampf(float(mv["active"]) * 1.6, 0.14, 0.28)
-			sp.grow = 1.06 + ratio * 0.10
+			var a0 := float(arc[0])
+			var a1 := float(arc[1])
+			# 弧心略在身前：内缘正好压住兵刃，外缘扫到身前空处
+			sp.position = center + Vector2(f.facing * reach * 0.10 * ds,
+				f.body_height() * 0.02 * ds)
+			# 刀光主色用固定的火焰橙红（参考视频就是这个色），只掺一点武将主题色，
+			# 让同一武将的刀光有辨识度，但不会被绿色/蓝色主题冲成非火焰色。
+			var fire := Color(1.0, 0.30, 0.05)
+			sp.color = fire.lerp(col, 0.12)
+			sp.core_color = Color(1.0, 0.97, 0.86)
+			sp.life = clampf(float(mv["active"]) * 2.8, 0.22, 0.40)
+			sp.trail_length = 1.25
+			sp.noise_strength = 0.85
+			sp.glow_intensity = 0.26
+			# 朝向：带状网格是自绘 mesh，用镜像而不是 flip_h；同时把角度也镜像，
+			# 保证刀尾/刀尖的位置和朝向一致。
+			if f.facing < 0:
+				sp.scale = Vector2(-1, 1)
+			sp.a0 = a0
+			sp.a1 = a1
 			# 顶掉同一武将上一刀的残留
 			var prev = _slash_of.get(f)
 			if prev != null and is_instance_valid(prev):

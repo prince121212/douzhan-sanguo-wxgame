@@ -22,3 +22,19 @@
 
 结论：2D 刀光这一块，开源代码库基本都是「拖尾」或「粒子」，真正能用的是一张手绘弧贴图 +
 按角度揭示的 shader。所以最终是 **CC0 素材 + 自写 shader** 的组合。
+
+## 刀光带 shader `scripts/battle/fx/slash_ribbon.gdshader`
+
+- **参考**：REEBOO Stylized VFX (Free) 的 `vfx_slash.gdshader`
+- **作者**：reeboolabs
+- **来源**：https://github.com/reeboolabs/reeboo-stylized-vfx-free
+- **许可**：MIT
+- **改动**：3D `spatial` shader 改写为 2D `canvas_item`；
+  带状网格改为按判定弧程序化生成（月牙剖面 + 两端收尖）；
+  新增内缘噪声烧蚀、四段色阶、刃口白热、独立加法光晕层。
+  噪声图 `assets/fx/noise_soft.png` 由 `_tools/build_fx_noise.py` 生成（原创，无版权问题）。
+
+## 噪声图 `assets/fx/noise_soft.png`
+
+- 由 `_tools/build_fx_noise.py` 程序生成（4 倍频值噪声 + 对比拉伸）
+- 可平铺 256×256 灰度，无外部素材来源
