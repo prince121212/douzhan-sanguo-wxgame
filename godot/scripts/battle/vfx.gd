@@ -80,18 +80,16 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 	var reach: float = mv["reach"] * (1.0 + ratio * 0.3)
 	match kind:
 		"thrust":
-			# 突刺：细长光刃沿判定方向推出，和斩击共用同一套揭示逻辑
-			var s := SlashTex.new()
-			s.kind = "thin"
-			s.radius = reach * 0.95 * ds
-			s.position = Vector2(f.global_position.x + f.facing * reach * 0.22 * ds,
-				center.y + f.body_height() * 0.06 * ds)
-			s.flip = f.facing < 0
-			var tarc: Array = mv["arc"]
-			s.set_arc_deg(float(tarc[0]), float(tarc[1]))
-			s.color = col.lerp(Color.WHITE, 0.45)
-			s.life = clampf(float(mv["active"]) * 1.6, 0.13, 0.24)
-			s.grow = 1.10
+			# 突刺：一道沿身前推出的锥形光刃（细长、收尖），不是扇形。
+			# 判定弧再宽，视觉上也不该摊成饼——那是「扫」，不是「刺」。
+			var s := ThrustStreak.new()
+			s.position = Vector2(f.global_position.x + f.facing * 10.0 * ds,
+				center.y + f.body_height() * 0.08 * ds)
+			s.scale = Vector2(f.facing * ds, ds)
+			s.length = reach * 1.05
+			s.width = 24.0 + ratio * 18.0 + (10.0 if mv["dmg"] > 70.0 else 0.0)
+			s.color = Color(1.0, 0.42, 0.10).lerp(col, 0.25)
+			s.life = 0.2 + ratio * 0.1
 			_add(s)
 		"slash", "slash_up", "slash_down":
 			# 火焰刀光：沿判定弧生成一条月牙带，shader 里做「内缘烧穿 + 外缘白热」。

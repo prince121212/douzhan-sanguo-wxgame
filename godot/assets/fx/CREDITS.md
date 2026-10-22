@@ -38,3 +38,11 @@
 
 - 由 `_tools/build_fx_noise.py` 程序生成（4 倍频值噪声 + 对比拉伸）
 - 可平铺 256×256 灰度，无外部素材来源
+
+## 突刺光 `scripts/battle/fx/thrust_streak.gd`
+
+- **原创**（无外部素材）。程序化多层多边形：外焰 / 主焰 / 亮芯 / 刃芯 + 尖端星芒。
+- **踩过的坑（务必注意）**：`assets/fx/slash/arc_thin.png` 是 **4 帧序列**（`Big/Slash Gradual.png`
+  的第 2 帧导出时未做列切分），不是单个月牙。任何「按单月牙圆心算角度」的 shader
+  （如 `slash_reveal.gdshader`）套上去都会切出从图片中心发散的硬边楔形。
+  突刺已改回程序化锥形光刃，不再使用该贴图；`slash_tex.gd` 仍保留供 `slashspr` 调试用。
