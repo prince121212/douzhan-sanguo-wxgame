@@ -420,7 +420,8 @@ func _draw_rank(vw: float, vh: float) -> void:
 		canvas.draw_string(f, Vector2(x + w - uw - 120, y + 90), atext, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(acol.r, acol.g, acol.b, alpha))
 
 
-## 观战结算的底栏：擂主连胜 + 下一阵倒计时（单挑这里是段位条）
+## 观战结算的底栏：左边和单挑一样显示段位（观战不改段位，只做只读展示），
+## 右边是擂台连胜 + 下一阵倒计时。
 func _draw_watch_bar(vw: float, vh: float) -> void:
 	var x := vw * 0.02
 	var y := vh * 0.72
@@ -430,29 +431,38 @@ func _draw_watch_bar(vw: float, vh: float) -> void:
 	var a := clampf(rank_anim, 0.0, 1.0)
 	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.05, 0.04, 0.03, 0.80 * a))
 	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.85, 0.7, 0.4, 0.3 * a), false, 2.0)
-	var bar_title := "擂 台" if Game.watch_rule == "arena" else "对 决"
-	canvas.draw_string(fu, Vector2(x, y + 4), bar_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.75, 0.68, 0.58, a))
-	canvas.draw_string(f, Vector2(x, y + 48), winner.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(1.0, 0.86, 0.5, a))
-	# 擂台：连胜数用一排小印表示（最多 6 枚，再多只写数字）；随机对决不显示连胜
+	# ---- 左：段位（只读，观战不影响段位）----
+	var rk := Progress.rank_info()
+	var rcol: Color = rk.get("color", Color.GRAY)
+	canvas.draw_string(fu, Vector2(x, y + 4), "段 位", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.75, 0.68, 0.58, a))
+	canvas.draw_string(f, Vector2(x, y + 44), str(rk.get("text", "")), HORIZONTAL_ALIGNMENT_LEFT, -1, 38, Color(rcol.r, rcol.g, rcol.b, a))
+	# 和单挑的段位条同一套内部分栏（300 / 560），两种结算看起来才是一家人
+	var bx := x + 300.0
+	var bw := 560.0
+	canvas.draw_rect(Rect2(bx, y + 14, bw, 24), Color(0.12, 0.09, 0.07, 0.9 * a))
+	canvas.draw_rect(Rect2(bx, y + 14, bw * clampf(float(rk.get("progress", 0.0)), 0.0, 1.0), 24), Color(rcol.r, rcol.g, rcol.b, 0.95 * a))
+	canvas.draw_rect(Rect2(bx, y + 14, bw, 24), Color(0.75, 0.6, 0.35, 0.5 * a), false, 1.5)
+	var pts := float(rk.get("points", 0.0))
+	var nx := str(rk.get("next_text", ""))
+	var pline := "段位分 %d" % int(pts)
+	if nx != "":
+		pline += "　·　距 %s 还差 %d" % [nx, maxi(0, int(ceil(float(rk.get("next_at", pts)) - pts)))]
+	canvas.draw_string(fu, Vector2(bx, y + 68), pline, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color(0.85, 0.78, 0.68, a))
+	# ---- 右：擂台 / 对决 ----
+	var rx := x + w * 0.56
+	canvas.draw_string(fu, Vector2(rx, y + 4), "擂 台" if Game.watch_rule == "arena" else "对 决", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.75, 0.68, 0.58, a))
+	canvas.draw_string(f, Vector2(rx, y + 42), winner.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 32, Color(1.0, 0.86, 0.5, a))
 	if Game.watch_rule == "arena":
-		var streak_x := x + 260.0
-		var chip := 34.0
-		for i in mini(streak, 6):
-			var r := Rect2(streak_x + i * (chip + 8.0), y + 16, chip, chip)
-			canvas.draw_rect(r, Color(0.55, 0.08, 0.05, 0.9 * a))
-			canvas.draw_rect(r, Color(1, 0.82, 0.4, 0.7 * a), false, 1.5)
-			var tw := fu.get_string_size("胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
-			canvas.draw_string(fu, Vector2(r.position.x + (chip - tw) * 0.5, y + 42), "胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1, 0.9, 0.7, a))
-		canvas.draw_string(fu, Vector2(streak_x, y + 74), "连胜 %d 阵" % streak, HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(0.85, 0.78, 0.68, a))
-	# 下一阵倒计时
+		var nmw := f.get_string_size(winner.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 32).x
+		canvas.draw_string(fu, Vector2(rx + nmw + 16, y + 40), "连胜 %d 阵" % streak, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.85, 0.78, 0.68, a))
 	var left: float = max(0.0, battle.autoplay_next_t)
 	var tip := ""
 	if Game.watch_rule == "arena":
 		tip = "%d 秒后下一位挑战者登场" % int(ceil(left))
 	else:
 		tip = "%d 秒后开始下一阵" % int(ceil(left))
-	var tw2 := f.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
-	canvas.draw_string(f, Vector2(x + w - tw2, y + 46), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1, 0.85, 0.5, a))
+	var tw2 := f.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
+	canvas.draw_string(f, Vector2(x + w - tw2, y + 74), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(1, 0.85, 0.5, a))
 
 
 func _draw_medals(cx: float, cy: float, win: bool) -> void:

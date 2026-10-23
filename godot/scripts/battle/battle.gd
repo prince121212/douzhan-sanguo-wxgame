@@ -94,6 +94,8 @@ func _result_test_loss() -> void:
 	cine_busy = false
 	recording = false
 	skip_intro = true
+	if vfx:
+		vfx.clear_text()
 	for f in fighters:
 		f.set_scripted(true)
 	f1.position = Vector2(760, 700)
@@ -115,6 +117,8 @@ func _result_test() -> void:
 	cine_busy = false
 	recording = false
 	skip_intro = true
+	if vfx:
+		vfx.clear_text()
 	for f in fighters:
 		f.set_scripted(true)
 	f1.position = Vector2(760, 700)
