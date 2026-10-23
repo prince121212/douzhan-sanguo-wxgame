@@ -53,7 +53,28 @@ func _ready() -> void:
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(shade)
-	create_tween().set_ignore_time_scale(true).tween_property(shade, "color:a", 0.86, 0.55)
+	create_tween().set_ignore_time_scale(true).tween_property(shade, "color:a", 0.18, 0.55)
+	# 顶部 / 底部渐变：只有放字的地方压暗，中间整条留给胜者欢呼
+	var grad := Gradient.new()
+	grad.set_color(0, Color(0, 0, 0, 0.82))
+	grad.set_color(1, Color(0, 0, 0, 0.82))
+	grad.add_point(0.17, Color(0, 0, 0, 0.50))
+	grad.add_point(0.30, Color(0, 0, 0, 0.0))
+	grad.add_point(0.60, Color(0, 0, 0, 0.0))
+	grad.add_point(0.72, Color(0, 0, 0, 0.55))
+	var gt := GradientTexture2D.new()
+	gt.gradient = grad
+	gt.fill_from = Vector2(0, 0)
+	gt.fill_to = Vector2(0, 1)
+	var band := TextureRect.new()
+	band.texture = gt
+	band.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	band.stretch_mode = TextureRect.STRETCH_SCALE
+	band.set_anchors_preset(Control.PRESET_FULL_RECT)
+	band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	band.modulate.a = 0.0
+	root.add_child(band)
+	create_tween().set_ignore_time_scale(true).tween_property(band, "modulate:a", 1.0, 0.55)
 	canvas = Control.new()
 	canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 	canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -76,20 +97,21 @@ func _build_player() -> void:
 	# 顶部：谁赢了 + 一句话
 	var who := UiKit.label("%s 胜" % winner.def["call"] if win else "%s 败" % loser.def["call"], 64,
 		Color(1.0, 0.88, 0.5) if win else Color(0.75, 0.82, 0.95), true, 10)
-	who.position = Vector2(Game.view_size().x * 0.5 - 600, 46 + Game.ui_offset_y())
+	var vs := Game.view_size()
+	who.position = Vector2(vs.x * 0.5 - 600, vs.y * 0.045)
 	who.size = Vector2(1200, 90)
 	who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(who)
 	var how := _how_text(win)
 	var sub := UiKit.label(how, 30, Color(0.92, 0.85, 0.74), false, 5)
-	sub.position = Vector2(Game.view_size().x * 0.5 - 700, 132 + Game.ui_offset_y())
+	sub.position = Vector2(vs.x * 0.5 - 700, vs.y * 0.045 + 88)
 	sub.size = Vector2(1400, 46)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(sub)
 	# 按钮
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 24)
-	hb.position = Vector2(Game.view_size().x * 0.5 - 470, 916 + Game.ui_offset_y())
+	hb.position = Vector2(vs.x * 0.5 - 436, vs.y * 0.875)
 	root.add_child(hb)
 	var b_again := UiKit.button("再 战", func(): Game.goto("battle"), 36, 200)
 	hb.add_child(b_again)
@@ -118,9 +140,8 @@ func _how_text(win: bool) -> String:
 
 func _build_watch() -> void:
 	var seal := Control.new()
-	var ox := Game.ui_offset_x()
-	var oy := Game.ui_offset_y()
-	seal.position = Vector2(560 + ox, 300 + oy)
+	var vs := Game.view_size()
+	seal.position = Vector2(vs.x * 0.02 + 150, vs.y * 0.30)
 	seal.draw.connect(func():
 		seal.draw_circle(Vector2.ZERO, 150.0, Color(0.6, 0.06, 0.04, 0.95))
 		seal.draw_arc(Vector2.ZERO, 150.0, 0.0, TAU, 64, UiKit.GOLD, 8.0)
@@ -140,8 +161,8 @@ func _build_watch() -> void:
 		battle.cam.shake(0.3))
 	var box := PanelContainer.new()
 	box.add_theme_stylebox_override("panel", UiKit.panel_style(0.88))
-	box.position = Vector2(760 + ox, 170 + oy)
-	box.custom_minimum_size = Vector2(1000, 0)
+	box.position = Vector2(vs.x * 0.98 - 830, vs.y * 0.16)
+	box.custom_minimum_size = Vector2(800, 0)
 	root.add_child(box)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 14)
@@ -234,19 +255,20 @@ func _draw_all() -> void:
 		return
 	var win: bool = bool(summary.get("is_win", true))
 	var vs := Game.view_size()
-	var oy := Game.ui_offset_y()
-	var cx := vs.x * 0.5 - 430.0
-	var cy := 372.0 + oy
-	# 左栏底板（让文字不压在背景立绘上）
-	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.04, 0.03, 0.02, 0.86))
+	var vw := vs.x
+	var vh := vs.y
+	var cx := vw * 0.02 + 280.0
+	var cy := vh * 0.365
+	# 左栏底板：只压住左栏，中间整条留给胜者
+	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.04, 0.03, 0.02, 0.80))
 	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.85, 0.7, 0.4, 0.22), false, 2.0)
 	if win:
 		_draw_grade(cx, cy)
-		_draw_breakdown(vs, oy, win)
+		_draw_breakdown(vw, vh, win)
 	else:
 		_draw_defeat(cx, cy)
-		_draw_loss_stats(vs, oy)
-	_draw_rank(vs, oy)
+		_draw_loss_stats(vw, vh)
+	_draw_rank(vw, vh)
 	_draw_medals(cx, cy, win)
 	if flash_a > 0.001:
 		canvas.draw_rect(Rect2(Vector2.ZERO, vs), Color(1, 0.95, 0.8, flash_a * 0.55))
@@ -256,7 +278,7 @@ func _draw_grade(cx: float, cy: float) -> void:
 	var ev: Dictionary = summary.get("eval", {})
 	var gid := str(ev.get("grade", "C"))
 	var col: Color = Progress.grade_color(gid)
-	var r := 142.0
+	var r := 128.0
 	var s := lerpf(2.2, 1.0, g_anim)
 	var a := clampf(g_anim, 0.0, 1.0)
 	canvas.draw_set_transform(Vector2(cx, cy), 0.0, Vector2(s, s))
@@ -286,7 +308,7 @@ func _draw_grade(cx: float, cy: float) -> void:
 	var gn: String = Progress.grade_name(gid)
 	var gd: String = Progress.grade_desc(gid)
 	var fn: Font = Game.font_title
-	var gy := cy + r + 48
+	var gy := cy + r + 44
 	if gn != gid:
 		var w1 := fn.get_string_size(gn, HORIZONTAL_ALIGNMENT_LEFT, -1, 36).x
 		canvas.draw_string(fn, Vector2(cx - w1 * 0.5, gy), gn, HORIZONTAL_ALIGNMENT_LEFT, -1, 36, Color(1, 0.93, 0.8, a))
@@ -329,35 +351,33 @@ func _draw_defeat(cx: float, cy: float) -> void:
 	canvas.draw_string(fn, Vector2(cx - w * 0.5, cy + r + 60), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(0.88, 0.85, 0.8, a))
 
 
-func _draw_breakdown(vs: Vector2, oy: float, win: bool) -> void:
+func _draw_breakdown(vw: float, vh: float, win: bool) -> void:
 	var ev: Dictionary = summary.get("eval", {})
 	if not win or ev.is_empty():
 		return
 	var parts: Dictionary = ev.get("parts", {})
 	var caps: Dictionary = ev.get("caps", {})
-	var x := vs.x * 0.5 + 60.0
-	var y := 250.0 + oy
-	var w := 700.0
+	var x := vw * 0.98 - 630.0
+	var y := vh * 0.175
+	var w := 600.0
 	var f: Font = Game.font_title
 	var fu: Font = Game.font_ui
 	var a := clampf(g_anim, 0.0, 1.0)
-	# 面板
-	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 430), Color(0.05, 0.04, 0.03, 0.86 * a))
-	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 430), Color(0.85, 0.7, 0.4, 0.35 * a), false, 2.0)
+	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 404), Color(0.05, 0.04, 0.03, 0.80 * a))
+	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 404), Color(0.85, 0.7, 0.4, 0.35 * a), false, 2.0)
 	canvas.draw_string(f, Vector2(x, y - 16), "战 报 明 细", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 0.86, 0.5, a))
 	for i in 5:
-		var ry := y + 20 + i * 74.0
+		var ry := y + 14 + i * 68.0
 		var key: String = ROW_KEYS[i]
 		var got: float = float(parts.get(key, 0.0))
 		var cap: float = maxf(0.001, float(caps.get(key, 1.0)))
 		var anim: float = [b0, b1, b2, b3, b4][i]
 		var frac: float = clampf(got / cap, 0.0, 1.0) * anim
 		canvas.draw_string(f, Vector2(x, ry + 24), ROW_LABELS[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.95, 0.88, 0.76, a))
-		canvas.draw_string(fu, Vector2(x + 140, ry + 24), ROW_HINTS[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 17, Color(0.6, 0.54, 0.46, 0.9 * a))
-		# 条
-		var bx := x + 330.0
-		var bw := 300.0
-		canvas.draw_rect(Rect2(bx, ry + 2, bw, 24), Color(0.12, 0.09, 0.07, 0.9 * a))
+		canvas.draw_string(fu, Vector2(x, ry + 46), ROW_HINTS[i], HORIZONTAL_ALIGNMENT_LEFT, -1, 15, Color(0.6, 0.54, 0.46, 0.85 * a))
+		var bx := x + 170.0
+		var bw := 290.0
+		canvas.draw_rect(Rect2(bx, ry + 4, bw, 24), Color(0.12, 0.09, 0.07, 0.9 * a))
 		var col := Color(0.95, 0.75, 0.35)
 		if key == "hp":
 			col = Color(0.9, 0.35, 0.3)
@@ -367,22 +387,22 @@ func _draw_breakdown(vs: Vector2, oy: float, win: bool) -> void:
 			col = Color(0.65, 0.85, 0.6)
 		elif key == "combo":
 			col = Color(0.8, 0.6, 0.95)
-		canvas.draw_rect(Rect2(bx, ry + 2, bw * frac, 24), Color(col.r, col.g, col.b, a))
-		canvas.draw_rect(Rect2(bx, ry + 2, bw, 24), Color(0.75, 0.6, 0.35, 0.5 * a), false, 1.5)
+		canvas.draw_rect(Rect2(bx, ry + 4, bw * frac, 24), Color(col.r, col.g, col.b, a))
+		canvas.draw_rect(Rect2(bx, ry + 4, bw, 24), Color(0.75, 0.6, 0.35, 0.5 * a), false, 1.5)
 		var vtxt := "%.1f / %d" % [got * anim, int(round(cap))]
-		canvas.draw_string(f, Vector2(bx + bw + 16, ry + 24), vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.95, 0.9, 0.82, a))
+		canvas.draw_string(f, Vector2(bx + bw + 14, ry + 26), vtxt, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.9, 0.82, a))
 
 
-func _draw_loss_stats(vs: Vector2, oy: float) -> void:
+func _draw_loss_stats(vw: float, vh: float) -> void:
 	var me: Fighter = battle.f1
 	var him: Fighter = battle.f2
-	var x := vs.x * 0.5 + 40.0
-	var y := 250.0 + oy
-	var w := 700.0
+	var x := vw * 0.98 - 630.0
+	var y := vh * 0.175
+	var w := 600.0
 	var f: Font = Game.font_title
 	var fu: Font = Game.font_ui
 	var a := clampf(g_anim, 0.0, 1.0)
-	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 400), Color(0.05, 0.04, 0.03, 0.86 * a))
+	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 400), Color(0.05, 0.04, 0.03, 0.80 * a))
 	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 400), Color(0.85, 0.7, 0.4, 0.35 * a), false, 2.0)
 	canvas.draw_string(f, Vector2(x, y - 16), "本 场 数 据", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 0.86, 0.5, a))
 	var rows := [
@@ -393,27 +413,27 @@ func _draw_loss_stats(vs: Vector2, oy: float) -> void:
 		["拼刀获胜", int(me.stats["clash_win"]), int(him.stats["clash_win"])],
 		["造成伤害", int(me.stats["dmg"]), int(him.stats["dmg"])],
 	]
-	canvas.draw_string(fu, Vector2(x + 330, y + 24), me.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.75, 0.7, a))
-	canvas.draw_string(fu, Vector2(x + 480, y + 24), him.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.7, 0.8, 0.95, a))
+	canvas.draw_string(fu, Vector2(x + 300, y + 24), me.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.95, 0.75, 0.7, a))
+	canvas.draw_string(fu, Vector2(x + 450, y + 24), him.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.7, 0.8, 0.95, a))
 	for i in rows.size():
 		var ry := y + 60 + i * 52.0
 		canvas.draw_string(fu, Vector2(x, ry), rows[i][0], HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.9, 0.84, 0.75, a))
-		canvas.draw_string(f, Vector2(x + 330, ry), str(rows[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.95, 0.75, 0.7, a))
-		canvas.draw_string(f, Vector2(x + 480, ry), str(rows[i][2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.7, 0.8, 0.95, a))
+		canvas.draw_string(f, Vector2(x + 300, ry), str(rows[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.95, 0.75, 0.7, a))
+		canvas.draw_string(f, Vector2(x + 450, ry), str(rows[i][2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.7, 0.8, 0.95, a))
 	var tip := "下次试试：多拆招、多闪避，血量和用时都会更好看"
 	canvas.draw_string(fu, Vector2(x, y + 388), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color(0.62, 0.56, 0.48, a))
 
 
-func _draw_rank(vs: Vector2, oy: float) -> void:
+func _draw_rank(vw: float, vh: float) -> void:
 	var before: Dictionary = summary.get("rank_before", {})
 	var after: Dictionary = summary.get("rank_after", before)
-	var x := vs.x * 0.5 - 620.0
-	var y := 700.0 + oy
-	var w := 1240.0
+	var x := vw * 0.02
+	var y := vh * 0.72
+	var w := vw * 0.96
 	var f: Font = Game.font_title
 	var fu: Font = Game.font_ui
 	var a := clampf(rank_anim, 0.0, 1.0)
-	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.05, 0.04, 0.03, 0.86 * a))
+	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.05, 0.04, 0.03, 0.80 * a))
 	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.85, 0.7, 0.4, 0.3 * a), false, 2.0)
 	canvas.draw_string(fu, Vector2(x, y + 4), "段 位", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.75, 0.68, 0.58, a))
 	var btext := str(before.get("text", "青铜 III"))
@@ -421,7 +441,7 @@ func _draw_rank(vs: Vector2, oy: float) -> void:
 	var bcol: Color = before.get("color", Color.GRAY)
 	var acol: Color = after.get("color", bcol)
 	canvas.draw_string(f, Vector2(x, y + 44), btext, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(bcol.r, bcol.g, bcol.b, a))
-	# 进度条：before.progress -> after.progress（同一小段内）
+	# 进度条
 	var bx := x + 300.0
 	var bw := 560.0
 	canvas.draw_rect(Rect2(bx, y + 14, bw, 26), Color(0.12, 0.09, 0.07, 0.9 * a))
@@ -441,7 +461,6 @@ func _draw_rank(vs: Vector2, oy: float) -> void:
 	if nx != "":
 		line += "　·　距 %s 还差 %d" % [nx, maxi(0, int(ceil(float(after.get("next_at", pts)) - pts)))]
 	canvas.draw_string(fu, Vector2(bx, y + 70), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(0.85, 0.78, 0.68, a))
-	# 晋升
 	if bool(summary.get("rank_up", false)) and rank_anim > 0.6:
 		var up := "晋 升"
 		var uw := f.get_string_size(up, HORIZONTAL_ALIGNMENT_LEFT, -1, 46).x
@@ -463,7 +482,7 @@ func _draw_medals(cx: float, cy: float, win: bool) -> void:
 	var col := Color(1.0, 0.84, 0.42)
 	var w := f.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x
 	var px := cx - w * 0.5
-	var py := cy + 268.0 - (1.0 - a) * 26.0
+	var py := cy + 236.0 - (1.0 - a) * 26.0
 	canvas.draw_string_outline(f, Vector2(px, py), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, 8, Color(0.15, 0.08, 0.02, a))
 	canvas.draw_string(f, Vector2(px, py), txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(col.r, col.g, col.b, a))
 	if not bool(summary.get("gate_ok", true)):
@@ -481,4 +500,4 @@ func _draw_medals(cx: float, cy: float, win: bool) -> void:
 		var line := "解锁称号：" + "、".join(names)
 		var fh2: Font = Game.font_ui
 		var tw := fh2.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1, 24).x
-		canvas.draw_string(fh2, Vector2(cx - tw * 0.5, py + 70), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.75, 0.95, 0.7, ta))
+		canvas.draw_string(fh2, Vector2(cx - tw * 0.5, py + 38), line, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, Color(0.75, 0.95, 0.7, ta))

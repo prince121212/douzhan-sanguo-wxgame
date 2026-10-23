@@ -69,6 +69,20 @@ func _process(delta: float) -> void:
 
 # ---------------------------------------------------------------- 接口
 
+## 进结算时清掉所有残留演出（对阵牌、横幅、中央大字），
+## 否则极快结束的一局会把这些压在战报背景上。
+func clear_overlays() -> void:
+	cutin.clear()
+	stamp.clear()
+	title.clear()
+	versus.clear()
+	banner.clear()
+	replay.clear()
+	clash.clear()
+	letterbox_goal = 0.0
+	speedlines = 0.0
+
+
 func set_letterbox(on: bool) -> void:
 	letterbox_goal = 1.0 if on else 0.0
 

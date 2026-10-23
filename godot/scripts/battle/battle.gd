@@ -93,6 +93,11 @@ func _result_test_loss() -> void:
 	phase = "result"
 	cine_busy = false
 	recording = false
+	skip_intro = true
+	for f in fighters:
+		f.set_scripted(true)
+	f1.position = Vector2(760, 700)
+	f2.position = Vector2(880, 700)
 	f1.stats = {"hits": 12, "max_combo": 3, "parries": 1, "dodges": 0, "ults": 0, "dmg": 480.0, "clash_win": 0}
 	f1.hp = 0.0
 	f2.hp = f2.max_hp * 0.4
@@ -109,6 +114,15 @@ func _result_test() -> void:
 	phase = "result"
 	cine_busy = false
 	recording = false
+	skip_intro = true
+	for f in fighters:
+		f.set_scripted(true)
+	f1.position = Vector2(760, 700)
+	f2.position = Vector2(880, 700)
+	# 开发：--resultx=数值 把胜者摆到指定 x，检查贴边时的结算运镜
+	for a in OS.get_cmdline_user_args():
+		if a.begins_with("--resultx="):
+			f1.position.x = float(a.substr(10))
 	f1.stats = {"hits": 26, "max_combo": 9, "parries": 5, "dodges": 3, "ults": 2, "dmg": 1420.0, "clash_win": 2}
 	f2.stats = {"hits": 14, "max_combo": 4, "parries": 2, "dodges": 1, "ults": 1, "dmg": 610.0, "clash_win": 0}
 	f1.hp = f1.max_hp * 0.72
@@ -1656,6 +1670,7 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 		return
 	phase = "result"
 	cine.set_letterbox(false)
+	cine.clear_overlays()
 	if hud:
 		hud.visible = false
 	if touch:
@@ -1663,6 +1678,9 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 	if Game.sim:
 		_sim_report(a, d, by_time)
 		return
+	# 结算构图：不压全屏黑幕，把胜者用运镜摆到画面正中，
+	# 左右只留两块战报面板，中间那条「欢呼」的镜头一直是活的背景。
+	_result_camera(a, d, player_side < 0)
 	var summary := {}
 	if player_side >= 0:
 		summary = _grade_and_record(a, by_time)
@@ -1672,6 +1690,78 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 	add_child(result_panel)
 	if player_side < 0:
 		autoplay_next_t = 7.5
+
+
+## ground 底图相对 map 的四边外扩量：{left, top, right, bottom}
+## 全部由 arena 配置推出来，换战场/换底图尺寸时自动跟着变。
+func _ground_overhang() -> Array:
+	var size: Vector2 = arena.map_size if arena else map_rect.size
+	var gs := Vector2(2600, 1200)
+	if arena and arena.arena_def:
+		var raw = arena.arena_def.get("ground_scale", [2600, 1200])
+		if raw is Array and raw.size() >= 2:
+			gs = Vector2(float(raw[0]), float(raw[1]))
+	var gp := size * 0.5 + Vector2(0, 80) - gs * 0.5
+	var left := maxf(0.0, 0.0 - gp.x) - 20.0
+	var top := maxf(0.0, 0.0 - gp.y) - 20.0
+	var right := maxf(0.0, gp.x + gs.x - size.x) - 20.0
+	var bottom := maxf(0.0, gp.y + gs.y - size.y) - 20.0
+	return [Vector2(maxf(0.0, left), maxf(0.0, top)),
+		Vector2(maxf(0.0, right), maxf(0.0, bottom))]
+
+
+## 结算镜头：用运镜把胜者摆到画面正中（左右两块战报之间），让欢呼动作完整露出。
+## 关键点：镜头位置自己做 clamp（shot_free 会跳过 Camera2D 的边界），
+## 否则胜者在场地最左/最右时会把地图外的空地拉进画面。
+func _result_camera(a: Fighter, loser: Fighter, watch := false) -> void:
+	var vp := Game.view_size()
+	var z := 1.86 if not watch else 1.70
+	# 结算时允许镜头越过 map 边线，只要仍在 ground 底图内就不会露黑边。
+	# 底图比 map 大一圈（arena.json 的 ground_scale），宽屏下靠这点余量
+	# 才能把贴边的胜者也摆到中间，而不是被边界钳到偏左。
+	var pad := _ground_overhang()
+	var view := Vector2(maxf(vp.x, 1920.0), maxf(vp.y, 1080.0))
+	var half := view / (2.0 * z)
+	# 只有胜者完全贴到边线才轻推一下（正常范围靠运镜就够，不必让人物滑动）
+	var lo := map_rect.position.x + 40.0
+	var hi := map_rect.end.x - 40.0
+	var goal_x := clampf(a.position.x, lo, hi)
+	if absf(goal_x - a.position.x) > 1.0:
+		var from := a.position
+		var to := Vector2(goal_x, a.position.y)
+		a.vel = Vector2.ZERO
+		var tw := create_tween().set_ignore_time_scale(true)
+		tw.tween_method(func(k: float): a.position = from.lerp(to, k), 0.0, 1.0, 0.7) \
+			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	var want_x := 0.50 if not watch else 0.315
+	# 败者倒在胜者脚边时挪开一点，别糊在胜者身上（远了就不动，免得长距离滑行）。
+	# 目标位置按「屏幕比例」算，避开左右两块面板：单挑往左，观战往右（左边是胜字大印）。
+	if loser and is_instance_valid(loser) and loser.position.distance_to(a.position) < 240.0:
+		var want_loser_x := 0.355 if not watch else 0.455
+		var away := Vector2(
+			goal_x + (want_loser_x - want_x) * vp.x / z,
+			a.position.y + 34.0)
+		away.x = clampf(away.x, map_rect.position.x + 60.0, map_rect.end.x - 60.0)
+		if loser.position.distance_to(away) > 6.0:
+			var lf := loser.position
+			var tw2 := create_tween().set_ignore_time_scale(true)
+			tw2.tween_method(func(k: float): loser.position = lf.lerp(away, k), 0.0, 1.0, 0.7) \
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	# 定机位：单挑把胜者放正中；观战右侧有战报箱，胜者略偏左
+	var want := Vector2(vp.x * want_x, vp.y * 0.545)
+	var cam_p := Vector2(
+		goal_x - (want.x - vp.x * 0.5) / z,
+		a.position.y - 70.0 - (want.y - vp.y * 0.5) / z)
+	var r := Rect2(map_rect.position - pad[0], map_rect.size + pad[0] + pad[1])
+	if r.size.x > half.x * 2.0:
+		cam_p.x = clampf(cam_p.x, r.position.x + half.x, r.end.x - half.x)
+	else:
+		cam_p.x = r.get_center().x
+	if r.size.y > half.y * 2.0:
+		cam_p.y = clampf(cam_p.y, r.position.y + half.y, r.end.y - half.y)
+	else:
+		cam_p.y = r.get_center().y
+	cam.shot(cam_p, z, 3600.0, 2.2, true)
 
 
 ## 结算评分 + 成长记录。只有玩家亲自打的单挑才计分（观战不计）。
