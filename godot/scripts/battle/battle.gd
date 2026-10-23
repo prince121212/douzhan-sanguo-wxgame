@@ -1671,6 +1671,8 @@ func _end_bout(a: Fighter, d: Fighter, by_time: bool) -> void:
 	phase = "result"
 	cine.set_letterbox(false)
 	cine.clear_overlays()
+	if vfx:
+		vfx.clear_text()
 	if hud:
 		hud.visible = false
 	if touch:
@@ -1713,9 +1715,11 @@ func _ground_overhang() -> Array:
 ## 结算镜头：用运镜把胜者摆到画面正中（左右两块战报之间），让欢呼动作完整露出。
 ## 关键点：镜头位置自己做 clamp（shot_free 会跳过 Camera2D 的边界），
 ## 否则胜者在场地最左/最右时会把地图外的空地拉进画面。
-func _result_camera(a: Fighter, loser: Fighter, watch := false) -> void:
+func _result_camera(a: Fighter, loser: Fighter, _watch := false) -> void:
 	var vp := Game.view_size()
-	var z := 1.86 if not watch else 1.70
+	# 单挑 / 观战现在是同一套版式（左评价印、右战报明细），
+	# 所以镜头也统一：胜者钉在正中那条空档里。
+	var z := 1.86
 	# 结算时允许镜头越过 map 边线，只要仍在 ground 底图内就不会露黑边。
 	# 底图比 map 大一圈（arena.json 的 ground_scale），宽屏下靠这点余量
 	# 才能把贴边的胜者也摆到中间，而不是被边界钳到偏左。
@@ -1733,11 +1737,11 @@ func _result_camera(a: Fighter, loser: Fighter, watch := false) -> void:
 		var tw := create_tween().set_ignore_time_scale(true)
 		tw.tween_method(func(k: float): a.position = from.lerp(to, k), 0.0, 1.0, 0.7) \
 			.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	var want_x := 0.50 if not watch else 0.315
+	var want_x := 0.50
 	# 败者倒在胜者脚边时挪开一点，别糊在胜者身上（远了就不动，免得长距离滑行）。
-	# 目标位置按「屏幕比例」算，避开左右两块面板：单挑往左，观战往右（左边是胜字大印）。
+	# 目标位置按「屏幕比例」算，落在中间空档偏左，避开左右两块面板。
 	if loser and is_instance_valid(loser) and loser.position.distance_to(a.position) < 240.0:
-		var want_loser_x := 0.355 if not watch else 0.455
+		var want_loser_x := 0.355
 		var away := Vector2(
 			goal_x + (want_loser_x - want_x) * vp.x / z,
 			a.position.y + 34.0)
@@ -1747,7 +1751,7 @@ func _result_camera(a: Fighter, loser: Fighter, watch := false) -> void:
 			var tw2 := create_tween().set_ignore_time_scale(true)
 			tw2.tween_method(func(k: float): loser.position = lf.lerp(away, k), 0.0, 1.0, 0.7) \
 				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-	# 定机位：单挑把胜者放正中；观战右侧有战报箱，胜者略偏左
+	# 定机位：胜者放在正中
 	var want := Vector2(vp.x * want_x, vp.y * 0.545)
 	var cam_p := Vector2(
 		goal_x - (want.x - vp.x * 0.5) / z,

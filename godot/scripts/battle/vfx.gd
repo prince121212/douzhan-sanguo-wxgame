@@ -336,6 +336,14 @@ func stamp(pos: Vector2, text: String, col: Color, size := 72) -> void:
 	top_layer.add_child(t)
 
 
+## 结算时清掉还挂在场上的飘字 / 印章 / 对白气泡（战斗里打出的「拆招」等）
+func clear_text() -> void:
+	if top_layer == null:
+		return
+	for c in top_layer.get_children():
+		c.queue_free()
+
+
 func say(f: Fighter, text: String, life := 2.2) -> void:
 	if text == "":
 		return

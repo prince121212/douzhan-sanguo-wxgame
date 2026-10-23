@@ -1,8 +1,10 @@
 extends CanvasLayer
 ## 战后结算。
-##   · 单挑（有玩家）：炫酷战报 —— 评价大字印 + 五项评分条 + 段位进度 + 奖章 + 称号/晋升
-##   · 观战：胜者大印 + 双方数据 + 自动下一阵倒计时
-## 所有分数/段位/奖章都由 Progress 算好传进来，本文件只负责画。
+## 版式（单挑 / 观战统一）：中间留出空档给胜者欢呼镜头，
+##   左栏 评价大字印（分数 / 评价名 / 奖章），右栏 五项评分明细，
+##   底栏 单挑=段位进度（+晋升），观战=擂台连胜 + 下一阵倒计时。
+## 单挑的分数/段位/奖章由 Progress 算好传进来；观战没有存档，
+## 现场用 Progress.evaluate 按胜者数据算一份只读的评价（不计奖章、不改段位）。
 
 var battle: Node
 var winner: Fighter
@@ -13,7 +15,9 @@ var summary: Dictionary = {}     # Progress.record_match 的返回值（观战�
 var root: Control
 var canvas: Control
 var t := 0.0
-var countdown_lbl: Label
+var is_watch := false           # 观战结算：没有 Progress 存档，但同样走「评分」版式
+var eval_res: Dictionary = {}   # 单挑取 summary.eval；观战现场按胜者数据算一份
+var streak := 1                 # 擂台连胜（观战）
 
 # 动画量
 var g_anim := 0.0            # 评价印出现 0→1
@@ -81,43 +85,53 @@ func _ready() -> void:
 	canvas.draw.connect(_draw_all)
 	root.add_child(canvas)
 
-	if summary.is_empty():
-		_build_watch()
+	is_watch = summary.is_empty()
+	if is_watch:
+		var dur: float = battle.match_elapsed + maxf(0.0, battle.game_time - battle.match_start_time)
+		eval_res = Progress.evaluate(winner.stats, winner.hp / maxf(1.0, winner.max_hp), dur, by_time)
+		streak = Game.champion_streak + 1 if Game.champion_id == winner.id else 1
 	else:
-		_build_player()
+		eval_res = summary.get("eval", {})
+	_build_top()
 	_animate()
 
 
-# ---------------------------------------------------------------- 单挑：炫酷战报
+# ---------------------------------------------------------------- 顶部标题 + 按钮
 
-func _build_player() -> void:
-	var win: bool = bool(summary.get("is_win", true))
-	var ev: Dictionary = summary.get("eval", {})
-	var gid := str(ev.get("grade", "C")) if win else ""
-	# 顶部：谁赢了 + 一句话
-	var who := UiKit.label("%s 胜" % winner.def["call"] if win else "%s 败" % loser.def["call"], 64,
-		Color(1.0, 0.88, 0.5) if win else Color(0.75, 0.82, 0.95), true, 10)
+func _build_top() -> void:
 	var vs := Game.view_size()
+	var win := _is_win()
+	# 顶部：谁赢了 + 一句话（单挑 / 观战共用）
+	var head := "%s 胜" % winner.def["call"] if win else "%s 败" % loser.def["call"]
+	var who := UiKit.label(head, 64,
+		Color(1.0, 0.88, 0.5) if win else Color(0.75, 0.82, 0.95), true, 10)
 	who.position = Vector2(vs.x * 0.5 - 600, vs.y * 0.045)
 	who.size = Vector2(1200, 90)
 	who.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(who)
-	var how := _how_text(win)
-	var sub := UiKit.label(how, 30, Color(0.92, 0.85, 0.74), false, 5)
+	var sub := UiKit.label(_how_text(win), 30, Color(0.92, 0.85, 0.74), false, 5)
 	sub.position = Vector2(vs.x * 0.5 - 700, vs.y * 0.045 + 88)
 	sub.size = Vector2(1400, 46)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	root.add_child(sub)
-	# 按钮
+	# 按钮：观战只有「下一阵 / 返回选单」，单挑是四个
 	var hb := HBoxContainer.new()
 	hb.add_theme_constant_override("separation", 24)
-	hb.position = Vector2(vs.x * 0.5 - 436, vs.y * 0.875)
 	root.add_child(hb)
-	var b_again := UiKit.button("再 战", func(): Game.goto("battle"), 36, 200)
-	hb.add_child(b_again)
-	hb.add_child(UiKit.button("换 将", func(): Game.goto("select"), 36, 200))
-	hb.add_child(UiKit.button("主菜单", func(): Game.goto("title"), 36, 200))
-	hb.add_child(UiKit.button("成 就", func(): Game.goto("profile"), 36, 200))
+	var b_again: Button = null
+	if is_watch:
+		var bw := 240.0
+		hb.position = Vector2(vs.x * 0.5 - bw - 12, vs.y * 0.875)
+		b_again = UiKit.button("下一阵", func(): battle._next_watch_match(), 36, bw)
+		hb.add_child(b_again)
+		hb.add_child(UiKit.button("返回选单", func(): Game.goto("title"), 36, bw))
+	else:
+		hb.position = Vector2(vs.x * 0.5 - 436, vs.y * 0.875)
+		b_again = UiKit.button("再 战", func(): Game.goto("battle"), 36, 200)
+		hb.add_child(b_again)
+		hb.add_child(UiKit.button("换 将", func(): Game.goto("select"), 36, 200))
+		hb.add_child(UiKit.button("主菜单", func(): Game.goto("title"), 36, 200))
+		hb.add_child(UiKit.button("成 就", func(): Game.goto("profile"), 36, 200))
 	b_again.call_deferred("grab_focus")
 	if win:
 		get_tree().create_timer(0.6, true, false, true).timeout.connect(func(): Sfx.play("drum_big", 0.0))
@@ -130,92 +144,32 @@ func _how_text(win: bool) -> String:
 	if not win:
 		return "胜败乃兵家常事，整军再战便是。"
 	if by_time:
+		if is_watch:
+			return "鸣金收兵，%s以体力占优取胜。" % winner.def["name"]
 		return "鸣金收兵，以体力占优取胜（超时判胜，评价受限）。"
+	if is_watch:
+		if loser.mounted:
+			return "%s与%s大战%d合，斩%s于马下！" % [winner.def["name"], loser.def["name"], max(1, battle.round_count), loser.def["name"]]
+		return "%s与%s大战%d合，终将%s击倒！" % [winner.def["name"], loser.def["name"], max(1, battle.round_count), loser.def["name"]]
 	if loser.mounted:
 		return "大战 %d 合，斩 %s 于马下！" % [max(1, battle.round_count), loser.def["name"]]
 	return "大战 %d 合，终将 %s 击倒！" % [max(1, battle.round_count), loser.def["name"]]
 
 
-# ---------------------------------------------------------------- 观战：旧版简版
-
-func _build_watch() -> void:
-	var seal := Control.new()
-	var vs := Game.view_size()
-	seal.position = Vector2(vs.x * 0.02 + 150, vs.y * 0.30)
-	seal.draw.connect(func():
-		seal.draw_circle(Vector2.ZERO, 150.0, Color(0.6, 0.06, 0.04, 0.95))
-		seal.draw_arc(Vector2.ZERO, 150.0, 0.0, TAU, 64, UiKit.GOLD, 8.0)
-		seal.draw_arc(Vector2.ZERO, 128.0, 0.0, TAU, 64, Color(1, 0.8, 0.4, 0.6), 3.0)
-		var f: Font = Game.font_brush
-		var w := f.get_string_size("胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 200).x
-		seal.draw_string_outline(f, Vector2(-w * 0.5, 70), "胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 200, 14, Color(0.2, 0.02, 0.0))
-		seal.draw_string(f, Vector2(-w * 0.5, 70), "胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 200, Color(1.0, 0.92, 0.72)))
-	root.add_child(seal)
-	seal.scale = Vector2(2.4, 2.4)
-	seal.modulate.a = 0.0
-	var tw := create_tween().set_ignore_time_scale(true).set_parallel(true)
-	tw.tween_property(seal, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tw.tween_property(seal, "modulate:a", 1.0, 0.2)
-	tw.chain().tween_callback(func():
-		Sfx.play("drum", 0.0, 1.0)
-		battle.cam.shake(0.3))
-	var box := PanelContainer.new()
-	box.add_theme_stylebox_override("panel", UiKit.panel_style(0.88))
-	box.position = Vector2(vs.x * 0.98 - 830, vs.y * 0.16)
-	box.custom_minimum_size = Vector2(800, 0)
-	root.add_child(box)
-	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 14)
-	box.add_child(v)
-	v.add_child(UiKit.label("%s %s" % [winner.def["call"], "胜"], 66, Color(1.0, 0.88, 0.5), true, 10))
-	var how := ""
-	if by_time:
-		how = "鸣金收兵，%s以体力占优取胜。" % winner.def["name"]
-	elif loser.mounted:
-		how = "%s与%s大战%d合，斩%s于马下！" % [winner.def["name"], loser.def["name"], max(1, battle.round_count), loser.def["name"]]
-	else:
-		how = "%s与%s大战%d合，终将%s击倒！" % [winner.def["name"], loser.def["name"], max(1, battle.round_count), loser.def["name"]]
-	v.add_child(UiKit.label(how, 34, UiKit.PAPER, true, 6))
-	if battle.rounds_to_win > 1:
-		v.add_child(UiKit.label("局分  %s %d : %d %s" % [battle.f1.def["name"], battle.wins[0], battle.wins[1], battle.f2.def["name"]], 28, Color(1, 0.85, 0.6), false, 4))
-	var grid := GridContainer.new()
-	grid.columns = 3
-	grid.add_theme_constant_override("h_separation", 60)
-	grid.add_theme_constant_override("v_separation", 6)
-	v.add_child(grid)
-	var a: Fighter = battle.f1
-	var b2: Fighter = battle.f2
-	grid.add_child(UiKit.label("", 26))
-	grid.add_child(UiKit.label(a.def["name"], 34, a.theme_color.lerp(Color.WHITE, 0.4)))
-	grid.add_child(UiKit.label(b2.def["name"], 34, b2.theme_color.lerp(Color.WHITE, 0.4)))
-	var rows := [["命中", "hits"], ["最大连击", "max_combo"], ["拆招", "parries"], ["闪避", "dodges"], ["拼刀胜", "clash_win"], ["绝技", "ults"], ["伤害", "dmg"]]
-	for r in rows:
-		grid.add_child(UiKit.label(r[0], 28, Color(0.85, 0.75, 0.6), false, 4))
-		grid.add_child(UiKit.label(str(int(a.stats[r[1]])), 30, UiKit.PAPER, false, 4))
-		grid.add_child(UiKit.label(str(int(b2.stats[r[1]])), 30, UiKit.PAPER, false, 4))
-	var hb := HBoxContainer.new()
-	hb.add_theme_constant_override("separation", 22)
-	v.add_child(hb)
-	countdown_lbl = UiKit.label("", 30, Color(1, 0.85, 0.5), true, 6)
-	v.add_child(countdown_lbl)
-	hb.add_child(UiKit.button("下一阵", func(): battle._next_watch_match(), 36, 240))
-	hb.add_child(UiKit.button("返回选单", func(): Game.goto("title"), 36, 240))
-	box.modulate.a = 0.0
-	create_tween().set_ignore_time_scale(true).tween_property(box, "modulate:a", 1.0, 0.5).set_delay(0.3)
+func _is_win() -> bool:
+	return is_watch or bool(summary.get("is_win", true))
 
 
 # ---------------------------------------------------------------- 动画驱动
 
 func _animate() -> void:
-	if summary.is_empty():
-		return
-	var win: bool = bool(summary.get("is_win", true))
+	var win := _is_win()
 	# 每个属性各起一条 tween（用 delay 错开），避免 chain 与 parallel 混用出错
 	if win:
 		_tw(self, "g_anim", 1.0, 0.5, 0.15, Tween.TRANS_BACK, Tween.EASE_OUT)
 		_tw(self, "flash_a", 1.0, 0.08, 0.15)
 		_tw(self, "flash_a", 0.0, 0.5, 0.26)
-		var total: float = float(summary.get("eval", {}).get("total", 0.0))
+		var total: float = float(eval_res.get("total", 0.0))
 		_tw(self, "score_shown", total, 1.1, 0.35, Tween.TRANS_CUBIC, Tween.EASE_OUT)
 		var names := ["b0", "b1", "b2", "b3", "b4"]
 		for i in 5:
@@ -238,44 +192,40 @@ func _process(delta: float) -> void:
 	t += delta / maxf(0.0001, Engine.time_scale)
 	ring_rot += delta * 0.35
 	pulse = 0.5 + 0.5 * sin(t * 2.2)
-	if countdown_lbl:
-		var left: float = max(0.0, battle.autoplay_next_t)
-		if Game.watch_rule == "arena":
-			var streak: int = Game.champion_streak + 1 if Game.champion_id == winner.id else 1
-			countdown_lbl.text = "擂主 %s 已连胜 %d 阵　·　%d 秒后下一位挑战者登场" % [winner.def["name"], streak, int(ceil(left))]
-		else:
-			countdown_lbl.text = "%d 秒后开始下一阵" % int(ceil(left))
 	canvas.queue_redraw()
 
 
 # ---------------------------------------------------------------- 绘制
 
 func _draw_all() -> void:
-	if summary.is_empty():
-		return
-	var win: bool = bool(summary.get("is_win", true))
+	var win := _is_win()
 	var vs := Game.view_size()
 	var vw := vs.x
 	var vh := vs.y
+	# 左右两栏各自贴着屏幕边缘，中间空档宽度随屏幕变化（宽屏更宽，正好给欢呼镜头）
 	var cx := vw * 0.02 + 280.0
 	var cy := vh * 0.365
-	# 左栏底板：只压住左栏，中间整条留给胜者
-	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.04, 0.03, 0.02, 0.80))
-	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.85, 0.7, 0.4, 0.22), false, 2.0)
+	# 左栏底板：只压住左栏，中间整条留给胜者（跟着入场动画一起淡入）
+	var pa := clampf(g_anim, 0.0, 1.0)
+	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.04, 0.03, 0.02, 0.80 * pa))
+	canvas.draw_rect(Rect2(cx - 232, cy - 200, 464, 492), Color(0.85, 0.7, 0.4, 0.22 * pa), false, 2.0)
 	if win:
 		_draw_grade(cx, cy)
 		_draw_breakdown(vw, vh, win)
 	else:
 		_draw_defeat(cx, cy)
 		_draw_loss_stats(vw, vh)
-	_draw_rank(vw, vh)
+	if is_watch:
+		_draw_watch_bar(vw, vh)
+	else:
+		_draw_rank(vw, vh)
 	_draw_medals(cx, cy, win)
 	if flash_a > 0.001:
 		canvas.draw_rect(Rect2(Vector2.ZERO, vs), Color(1, 0.95, 0.8, flash_a * 0.55))
 
 
 func _draw_grade(cx: float, cy: float) -> void:
-	var ev: Dictionary = summary.get("eval", {})
+	var ev: Dictionary = eval_res
 	var gid := str(ev.get("grade", "C"))
 	var col: Color = Progress.grade_color(gid)
 	var r := 128.0
@@ -352,7 +302,7 @@ func _draw_defeat(cx: float, cy: float) -> void:
 
 
 func _draw_breakdown(vw: float, vh: float, win: bool) -> void:
-	var ev: Dictionary = summary.get("eval", {})
+	var ev: Dictionary = eval_res
 	if not win or ev.is_empty():
 		return
 	var parts: Dictionary = ev.get("parts", {})
@@ -402,8 +352,8 @@ func _draw_loss_stats(vw: float, vh: float) -> void:
 	var f: Font = Game.font_title
 	var fu: Font = Game.font_ui
 	var a := clampf(g_anim, 0.0, 1.0)
-	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 400), Color(0.05, 0.04, 0.03, 0.80 * a))
-	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 400), Color(0.85, 0.7, 0.4, 0.35 * a), false, 2.0)
+	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 448), Color(0.05, 0.04, 0.03, 0.80 * a))
+	canvas.draw_rect(Rect2(x - 30, y - 56, w + 60, 448), Color(0.85, 0.7, 0.4, 0.35 * a), false, 2.0)
 	canvas.draw_string(f, Vector2(x, y - 16), "本 场 数 据", HORIZONTAL_ALIGNMENT_LEFT, -1, 30, Color(1, 0.86, 0.5, a))
 	var rows := [
 		["命中次数", int(me.stats["hits"]), int(him.stats["hits"])],
@@ -421,7 +371,7 @@ func _draw_loss_stats(vw: float, vh: float) -> void:
 		canvas.draw_string(f, Vector2(x + 300, ry), str(rows[i][1]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.95, 0.75, 0.7, a))
 		canvas.draw_string(f, Vector2(x + 450, ry), str(rows[i][2]), HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(0.7, 0.8, 0.95, a))
 	var tip := "下次试试：多拆招、多闪避，血量和用时都会更好看"
-	canvas.draw_string(fu, Vector2(x, y + 388), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color(0.62, 0.56, 0.48, a))
+	canvas.draw_string(fu, Vector2(x, y + 372), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 19, Color(0.62, 0.56, 0.48, a))
 
 
 func _draw_rank(vw: float, vh: float) -> void:
@@ -470,8 +420,44 @@ func _draw_rank(vw: float, vh: float) -> void:
 		canvas.draw_string(f, Vector2(x + w - uw - 120, y + 90), atext, HORIZONTAL_ALIGNMENT_LEFT, -1, 26, Color(acol.r, acol.g, acol.b, alpha))
 
 
+## 观战结算的底栏：擂主连胜 + 下一阵倒计时（单挑这里是段位条）
+func _draw_watch_bar(vw: float, vh: float) -> void:
+	var x := vw * 0.02
+	var y := vh * 0.72
+	var w := vw * 0.96
+	var f: Font = Game.font_title
+	var fu: Font = Game.font_ui
+	var a := clampf(rank_anim, 0.0, 1.0)
+	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.05, 0.04, 0.03, 0.80 * a))
+	canvas.draw_rect(Rect2(x - 26, y - 34, w + 52, 132), Color(0.85, 0.7, 0.4, 0.3 * a), false, 2.0)
+	var bar_title := "擂 台" if Game.watch_rule == "arena" else "对 决"
+	canvas.draw_string(fu, Vector2(x, y + 4), bar_title, HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(0.75, 0.68, 0.58, a))
+	canvas.draw_string(f, Vector2(x, y + 48), winner.def["name"], HORIZONTAL_ALIGNMENT_LEFT, -1, 40, Color(1.0, 0.86, 0.5, a))
+	# 擂台：连胜数用一排小印表示（最多 6 枚，再多只写数字）；随机对决不显示连胜
+	if Game.watch_rule == "arena":
+		var streak_x := x + 260.0
+		var chip := 34.0
+		for i in mini(streak, 6):
+			var r := Rect2(streak_x + i * (chip + 8.0), y + 16, chip, chip)
+			canvas.draw_rect(r, Color(0.55, 0.08, 0.05, 0.9 * a))
+			canvas.draw_rect(r, Color(1, 0.82, 0.4, 0.7 * a), false, 1.5)
+			var tw := fu.get_string_size("胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x
+			canvas.draw_string(fu, Vector2(r.position.x + (chip - tw) * 0.5, y + 42), "胜", HORIZONTAL_ALIGNMENT_LEFT, -1, 22, Color(1, 0.9, 0.7, a))
+		canvas.draw_string(fu, Vector2(streak_x, y + 74), "连胜 %d 阵" % streak, HORIZONTAL_ALIGNMENT_LEFT, -1, 21, Color(0.85, 0.78, 0.68, a))
+	# 下一阵倒计时
+	var left: float = max(0.0, battle.autoplay_next_t)
+	var tip := ""
+	if Game.watch_rule == "arena":
+		tip = "%d 秒后下一位挑战者登场" % int(ceil(left))
+	else:
+		tip = "%d 秒后开始下一阵" % int(ceil(left))
+	var tw2 := f.get_string_size(tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 28).x
+	canvas.draw_string(f, Vector2(x + w - tw2, y + 46), tip, HORIZONTAL_ALIGNMENT_LEFT, -1, 28, Color(1, 0.85, 0.5, a))
+
+
 func _draw_medals(cx: float, cy: float, win: bool) -> void:
-	if not win:
+	# 观战不计奖章：底栏已经写了连胜，这里什么都不画
+	if not win or is_watch:
 		return
 	var gained := int(summary.get("medals", 0))
 	var a := clampf(medal_anim, 0.0, 1.0)
