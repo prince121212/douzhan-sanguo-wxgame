@@ -7,6 +7,7 @@ const SlashRibbon := preload("res://scripts/battle/fx/slash_ribbon.gd")
 const ImpactRing := preload("res://scripts/battle/fx/impact_ring.gd")
 const ThrustStreak := preload("res://scripts/battle/fx/thrust_streak.gd")
 const SparkBurst := preload("res://scripts/battle/fx/spark_burst.gd")
+const ArcSparks := preload("res://scripts/battle/fx/arc_sparks.gd")
 const RingWave := preload("res://scripts/battle/fx/ring_wave.gd")
 const DustPuff := preload("res://scripts/battle/fx/dust_puff.gd")
 const Afterimage := preload("res://scripts/battle/fx/afterimage.gd")
@@ -90,7 +91,9 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 			s.width = 24.0 + ratio * 18.0 + (10.0 if mv["dmg"] > 70.0 else 0.0)
 			s.color = Color(1.0, 0.42, 0.10).lerp(col, 0.25)
 			s.life = 0.2 + ratio * 0.1
-			_add(s)
+			# 普通混合：加法在明亮沙地上会把整根枪芒推成纯白，
+			# 只剩一个没有颜色的光条。
+			_add(s, false)
 		"slash", "slash_up", "slash_down":
 			# 火焰刀光：沿判定弧生成一条月牙带，shader 里做「内缘烧穿 + 外缘白热」。
 			# 为什么不用贴图：贴图的弧度/粗细是固定的，和招式判定弧对不上；
@@ -98,7 +101,8 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 			var sp := SlashRibbon.new()
 			# 半径≈兵刃长度：弧从刀尖起，绕到角色身前
 			sp.radius = reach * (0.52 if f.mounted else 0.55) * ds
-			sp.width = reach * (0.19 if f.mounted else 0.20) * ds * (1.0 + ratio * 0.2)
+			# 实机里 19% 太细（骑战约 36px），读起来像一根发光线而不是刀光
+			sp.width = reach * (0.27 if f.mounted else 0.28) * ds * (1.0 + ratio * 0.22)
 			var arc: Array = mv["arc"]
 			var a0 := float(arc[0])
 			var a1 := float(arc[1])
@@ -111,9 +115,9 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 			sp.color = fire.lerp(col, 0.12)
 			sp.core_color = Color(1.0, 0.97, 0.86)
 			sp.life = clampf(float(mv["active"]) * 2.8, 0.22, 0.40)
-			sp.trail_length = 1.25
-			sp.noise_strength = 0.85
-			sp.glow_intensity = 0.26
+			sp.trail_length = 1.55
+			sp.noise_strength = 0.45
+			sp.glow_intensity = 0.16
 			# 朝向：带状网格是自绘 mesh，用镜像而不是 flip_h；同时把角度也镜像，
 			# 保证刀尾/刀尖的位置和朝向一致。
 			if f.facing < 0:
@@ -126,6 +130,20 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 				prev.queue_free()
 			_add(sp, false)
 			_slash_of[f] = sp
+			# 刃口余烬：沿弧切线甩出去的火星，把刀光和地面连起来。
+			# 挂在刀光节点下面，这样连招顶掉上一刀时火星也一起收走；
+			# 局部坐标 + 父节点已有的镜像，朝向自动跟着走。
+			var em := ArcSparks.new()
+			em.radius = sp.radius + sp.width * 0.42
+			em.a0 = a0
+			em.a1 = a1
+			em.count = 20 + int(ratio * 12.0) + (6 if f.mounted else 0)
+			# 半径已经乘过 ds，速度也必须乘，否则远景的火星飞得相对太快
+			em.speed = reach * ds * (0.62 + ratio * 0.30)
+			em.color = sp.color
+			em.life = 0.34 + ratio * 0.14
+			# 普通混合：加法会把黄橙火星推到纯白，在明亮沙地上变成一排白点
+			sp.add_child(em)
 		"spin":
 			# 回旋斩：两圈反向的月牙，程序化画（贴图素材里没有整圈的那种）
 			for i in 2:
@@ -141,7 +159,8 @@ func swing(f: Fighter, mv: Dictionary, ratio: float) -> void:
 				sp.color = col.lerp(Color.WHITE, 0.25)
 				sp.life = float(mv["active"]) + 0.12
 				sp.sweep_time = float(mv["active"])
-				_add(sp)
+				# 同上：回旋斩也要保住橙色，不能加法
+				_add(sp, false)
 	if mv.get("ground_ring", false):
 		var gp := Vector2(f.global_position.x + f.facing * reach * 0.6 * ds, f.global_position.y)
 		get_tree().create_timer(max(0.04, float(mv["active"]) * 0.6), false).timeout.connect(func():
@@ -159,23 +178,15 @@ func hit_spark(pos: Vector2, col: Color, power: float) -> void:
 	_rec("hit_spark", [pos, col, power])
 	var s := SparkBurst.new()
 	s.position = pos
-	s.color = col.lerp(Color(1, 0.95, 0.8), 0.5)
+	s.color = col.lerp(Color(1, 0.95, 0.8), 0.12)
 	s.power = power
 	s.life = 0.26 + power * 0.12
-	_add(s)
-	if power > 0.78:
-		# 冲击环：只在重击时出现，小而碎。轻击每次都弹环会让画面变成打靶。
-		var ir := ImpactRing.new()
-		ir.position = pos
-		ir.r0 = 10.0 + power * 6.0
-		ir.r1 = 38.0 + power * 52.0
-		ir.color = col.lerp(Color.WHITE, 0.3)
-		ir.life = 0.18 + power * 0.08
-		_add(ir)
-	if power > 0.9:
-		_rec_depth += 1
-		ring(pos, 90.0 + power * 70.0, col.lerp(Color.WHITE, 0.5), false, 10.0, 0.3)
-		_rec_depth -= 1
+	# 普通混合：四芒星要保住色相，加法叠在明亮沙地上会直接烧成纯白
+	_add(s, false)
+	# 命中点不再加任何「环」。
+	# 之前重击会弹一圈 ImpactRing，但 draw_arc 在明亮沙地上会画出三条
+	# 规整的同心圆，像靶纸——参考视频里的命中点只有星芒和火星，没有环。
+	# 碎裂感靠四芒星本身的尖角，不需要额外的圆来强调。
 
 
 func clash_spark(pos: Vector2, big := true) -> void:
@@ -185,7 +196,7 @@ func clash_spark(pos: Vector2, big := true) -> void:
 	s.color = Color(1.0, 0.9, 0.55)
 	s.power = 2.2 if big else 1.0
 	s.life = 0.45
-	_add(s)
+	_add(s, false)
 	_rec_depth += 1
 	ring(pos, 150.0 if big else 78.0, Color(1.0, 0.95, 0.75), false, 11.0 if big else 7.0, 0.32)
 	_rec_depth -= 1
@@ -199,7 +210,8 @@ func block_spark(pos: Vector2, col := Color(1.0, 0.85, 0.4)) -> void:
 	s.power = 0.6
 	s.big_flash = false
 	s.life = 0.25
-	_add(s)
+	# 与命中星芒一致：普通混合，否则在沙地上会烧成白点
+	_add(s, false)
 
 
 func ring(pos: Vector2, r1: float, col: Color, ground := false, width := 12.0, life := 0.4) -> void:
@@ -211,7 +223,9 @@ func ring(pos: Vector2, r1: float, col: Color, ground := false, width := 12.0, l
 	r.ground = ground
 	r.width = width
 	r.life = life
-	_add(r, true, ground_layer if ground and ground_layer else null)
+	# 只有地面冲击波用加法（它本来就该在地面上泛光）；
+	# 空中的环用普通混合，否则在明亮沙地上会糊成一张白靶纸。
+	_add(r, ground, ground_layer if ground and ground_layer else null)
 
 
 func dust(pos: Vector2, size := 1.0, col := Color(0.78, 0.64, 0.46, 0.65)) -> void:

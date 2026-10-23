@@ -36,7 +36,7 @@ void fragment() {
 	float trail = 1.0 - smoothstep(0.0, trail_length, behind);
 	float tip = smoothstep(0.0, 0.05, v_t) * (1.0 - smoothstep(0.93, 1.0, v_t));
 	float d = (UV.y - 0.5) * 2.0;
-	float soft = exp(-d * d * 3.2);
+	float soft = exp(-d * d * 5.2);
 	float a = soft * trail * tip * color.a;
 	if (a <= 0.004) {
 		discard;

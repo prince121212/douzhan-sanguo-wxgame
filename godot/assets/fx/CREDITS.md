@@ -46,3 +46,10 @@
   的第 2 帧导出时未做列切分），不是单个月牙。任何「按单月牙圆心算角度」的 shader
   （如 `slash_reveal.gdshader`）套上去都会切出从图片中心发散的硬边楔形。
   突刺已改回程序化锥形光刃，不再使用该贴图；`slash_tex.gd` 仍保留供 `slashspr` 调试用。
+
+## 命中星芒 `assets/fx/star4.png` / 柔光 `assets/fx/glow_soft.png`
+
+- 由 `_tools/build_fx_star.py` 程序生成（四根针状尖刺 + 径向渐变），无外部素材来源
+- **不要改回运行时逐像素生成**：192×192 × 2×2 超采样约 15 万次 `pow()`，
+  第一次命中会卡一帧。预生成成 PNG 后运行时只是一次纹理上传。
+- 两张图的 `.import` 必须开 `mipmaps/generate=true`，否则缩小显示会有摩尔纹。

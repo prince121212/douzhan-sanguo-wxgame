@@ -56,11 +56,13 @@ func _draw() -> void:
 	var wob: float = sin(t * 70.0) * width * 0.05
 
 	# 层：宽度倍率 / 颜色 / 亮度 / 不透明度
+	# 普通混合下，低 alpha 的橙在明亮沙地上几乎看不见，只剩白芯。
+	# 所以外两层要「够实」，白芯只留很窄的一条。
 	var layers := [
-		[1.85, DEEP.lerp(color, 0.30), 1.00, 0.20],
-		[1.10, color, 1.00, 0.52],
-		[0.54, color.lerp(CORE, 0.55), 1.22, 0.74],
-		[0.25, CORE, 1.55, 0.95],
+		[1.85, DEEP.lerp(color, 0.45), 1.00, 0.42],
+		[1.10, color, 1.00, 0.78],
+		[0.48, color.lerp(CORE, 0.45), 1.05, 0.80],
+		[0.18, CORE, 1.20, 0.85],
 	]
 	var span: float = L - x0
 	for l in layers:
@@ -68,7 +70,8 @@ func _draw() -> void:
 		var col: Color = l[1]
 		var hdr: float = float(l[2])
 		var a: float = float(l[3]) * fade
-		col = Color(col.r * hdr, col.g * hdr, col.b * hdr, a)
+		# 普通混合下超过 1 的通道会被 clamp，没必要留高光系数
+		col = Color(minf(col.r * hdr, 1.0), minf(col.g * hdr, 1.0), minf(col.b * hdr, 1.0), a)
 		# 刀身：起点窄 → 0.3 处最宽 → 收尖
 		var pts := PackedVector2Array([
 			Vector2(x0, -w * 0.10 + wob),
@@ -81,17 +84,16 @@ func _draw() -> void:
 		draw_colored_polygon(pts, col)
 
 	# 枪尖爆点：出招瞬间亮一下，之后收掉。
-	# 用三层递减排布做柔边，别画成实心圆（实心圆在加法混合下是一块灰饼）。
+	# 只画一个小白核：多层同心圆在沙地上会显出「靶环」，
+	# 之前在实机里就是一个明显的三环图案。
 	if tip_flare > 0.0 and grow > 0.85:
 		var ft: float = clampf((t - 0.04) / maxf(0.02, life * 0.45), 0.0, 1.0)
-		var fr: float = width * (1.15 - ft * 0.75)
+		var fr: float = width * (1.05 - ft * 0.70)
 		var fa: float = (1.0 - ft) * 0.55 * fade * tip_flare
-		for k in 3:
-			var rr: float = fr * (1.0 - k * 0.32)
-			draw_circle(Vector2(L, 0.0), rr,
-				Color(CORE.r, CORE.g, CORE.b, fa * (0.22 + k * 0.16)))
+		# 只留一个小白核。三层递减圆在沙地上会画出三个同心圆，像靶纸。
+		draw_circle(Vector2(L, 0.0), fr * 0.34, Color(CORE.r, CORE.g, CORE.b, fa * 0.45))
 		# 十字星芒：四道细尖，让「刺中」有个方向感
-		var sl: float = fr * 2.1
+		var sl: float = fr * 1.45
 		for ang in [0.0, PI * 0.5, PI, PI * 1.5]:
 			var d := Vector2(cos(ang), sin(ang))
 			var perp := Vector2(-d.y, d.x) * fr * 0.10

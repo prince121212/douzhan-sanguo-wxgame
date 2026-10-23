@@ -26,9 +26,9 @@ var a0 := -60.0              ## 起始角（度，0 = 正前，负 = 上方）
 var a1 := 60.0               ## 结束角
 var life := 0.2
 var intensity := 1.0
-var trail_length := 1.8
+var trail_length := 1.55
 var sweep_power := 0.42
-var taper := 0.5             ## 两端收尖的锐利度，越小越尖
+var taper := 0.62            ## 剖面上升的锐度：越小越早变厚
 var noise_strength := 0.55
 var glow := 1.0              ## 外层柔光强度（0 关闭）
 var glow_intensity := 0.42   ## 外层柔光亮度
@@ -53,7 +53,9 @@ func _ready() -> void:
 		_mat_glow.set_shader_parameter("inner_radius", radius)
 		_mat_glow.set_shader_parameter("head_taper", head_taper)
 		var g := MeshInstance2D.new()
-		g.mesh = _build_halo(width * 2.4)
+		# 光晕只比主体宽一点（1.45×）。之前 2.4× 时，加法混合在明亮沙地上
+		# 会铺出一大片奶油色，把里面的橙色主体整条冲白——刀光变成一根白管子。
+		g.mesh = _build_halo(width * 1.45)
 		g.material = _mat_glow
 		add_child(g)
 
@@ -84,11 +86,15 @@ func _make_mat(lum: float, nz: float, rim: float) -> ShaderMaterial:
 	return mat
 
 
-## 月牙剖面：中间厚、两端收尖。返回 0..1 的厚度系数。
+## 月牙剖面：刀尾细、越靠刀尖越厚，末端再收一点。
+## 为什么不是对称的「眼睛形」：挥砍是加速甩出去的，能量堆在刀尖那头；
+## 对称的月牙读起来像一片静止的叶子，不像一道正在推进的刃。
 func _profile(u: float) -> float:
-	# sin 曲线做两端收尖，pow 控制尖角锐度；再轻微偏置，让刀尖那头更长
-	var s := sin(PI * clampf(u, 0.0, 1.0))
-	return pow(maxf(s, 0.0), taper) * (0.72 + 0.28 * u)
+	var rise := smoothstep(0.0, 0.68, u)
+	# 尾部保留 42% 的厚度：整条只剩一个胖头、尾巴细成线，读起来像根羽毛
+	var body := (0.42 + 0.58 * pow(rise, taper))
+	# 最末端（刀尖）收一点，但保留厚度，交给 vertex 的 head_taper 收成针尖
+	return body * (1.0 - 0.42 * smoothstep(0.86, 1.0, u))
 
 
 ## 光晕网格：比主体向外扩 w，内缘略微内缩，宽度方向留出柔光余量。

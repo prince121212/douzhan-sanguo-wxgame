@@ -61,7 +61,13 @@ func _draw() -> void:
 		return
 
 	# ---- 1) 扇面填充：从圆心扫出的整片光 ----
-	_fan(tail, head, radius * 0.97, Color(color.r * 0.45, color.g * 0.45, color.b * 0.45, 0.075 * fade), seg)
+	# 扇面填充只做「扫过的空气被点亮」的暗示，alpha 必须很低：
+	# 稍高一点就变成一块实心扇形饼，和突刺那个 bug 是同一种观感错误。
+	# 回旋斩（总跨度 > 180°）直接不画：从圆心铺满一圈就是一个实心圆盘。
+	# 注意判断必须用「总跨度」而不是当前 span：否则回旋斩开头几帧会画、
+	# 之后突然消失，肉眼就是一次闪烁。
+	if absf(a1 - a0) < PI * 0.85:
+		_fan(tail, head, radius * 0.90, Color(color.r * 0.42, color.g * 0.42, color.b * 0.42, 0.030 * fade), seg)
 
 	# ---- 2) 主弧带（粗 → 细，头亮尾暗）----
 	var w_max := thickness
@@ -71,39 +77,59 @@ func _draw() -> void:
 		var u := float(i) / float(seg)
 		var a: float = lerpf(tail, head, u)
 		var taper: float = pow(u, 0.35)          # 尾部极细、头部粗，做出「刀锋」的锐利感
-		var w: float = w_max * lerpf(0.06, 1.0, taper)
+		# 尾部收到 0（不然是一个齐口），头部最后 8% 略收，避免平头
+		var w: float = w_max * taper * (1.0 - 0.55 * smoothstep(0.92, 1.0, u))
 		var r_out := radius + w * 0.5
 		var r_in := radius - w * 0.5
 		var po := _pt(a, r_out)
 		var pi_ := _pt(a, r_in)
 		if i > 0:
-			var hot: float = lerpf(0.45, 1.6, u)          # 头部更亮
-			var al: float = fade * lerpf(0.35, 1.0, u)
-			var c := Color(color.r * hot, color.g * hot, color.b * hot, al)
+			# 亮度别超过 1：这层现在是普通混合（加法在沙地上会整条冲白）
+			var hot: float = lerpf(0.85, 1.05, u)         # 头部略亮
+			var al: float = fade * lerpf(0.55, 1.0, u)
+			var c := Color(minf(color.r * hot, 1.0), minf(color.g * hot, 1.0),
+				minf(color.b * hot, 1.0), al)
 			draw_primitive(PackedVector2Array([prev_o, po, pi_, prev_i]),
 				PackedColorArray([c, c, c, c]), PackedVector2Array())
 		prev_o = po
 		prev_i = pi_
 
 	# ---- 3) 亮芯：贴外缘的细白线 ----
-	var core_r := radius + w_max * 0.5 * 0.72
+	# 半径必须跟着局部宽度走：固定半径的话，刀尾（宽度≈0）会甩出一根
+	# 悬在弧外的白线。
 	var core_pts := PackedVector2Array()
 	for i in seg + 1:
 		var u := float(i) / float(seg)
-		core_pts.append(_pt(lerpf(tail, head, u), core_r))
+		var taper_c: float = pow(u, 0.35)
+		var wc: float = w_max * taper_c * (1.0 - 0.55 * smoothstep(0.92, 1.0, u))
+		core_pts.append(_pt(lerpf(tail, head, u), radius + wc * 0.5 * 0.72))
 	if core_pts.size() >= 2:
-		draw_polyline(core_pts, Color(1, 1, 1, 0.75 * fade), maxf(1.0, w_max * 0.16), true)
+		draw_polyline(core_pts, Color(1, 1, 1, 0.55 * fade), maxf(1.0, w_max * 0.10), true)
 
-	# ---- 4) 前缘：扫击最前端的一小段特别粗的白弧 ----
+	# ---- 4) 前缘：扫击最前端的一小段白弧 ----
+	# 不能用 draw_polyline 画粗线：线宽大于弧长时，末端会被截成一块方头
+	# （在回旋斩上就是个明显的白色方块）。这里手工做四边形，两端收尖。
 	if sweep < 1.0:
-		var hw := w_max * 1.25
-		var a_lo: float = head - dir * 0.22
-		var arc_pts := PackedVector2Array()
-		for i in 9:
-			var u := float(i) / 8.0
-			arc_pts.append(_pt(lerpf(a_lo, head, u), radius))
-		if arc_pts.size() >= 2:
-			draw_polyline(arc_pts, Color(1, 1, 1, 0.95 * fade), hw, true)
+		var a_lo: float = head - dir * 0.20
+		var hw := w_max * 0.30
+		var n2 := 8
+		var prev_a := Vector2.ZERO
+		var prev_b := Vector2.ZERO
+		for i in n2 + 1:
+			var u := float(i) / float(n2)
+			var ang: float = lerpf(a_lo, head, u)
+			# 两端收尖，中段最粗
+			var taper2: float = sin(PI * u)
+			var r_out := radius + hw * taper2
+			var r_in := radius - hw * taper2
+			var pa := _pt(ang, r_out)
+			var pb := _pt(ang, r_in)
+			if i > 0:
+				var c := Color(1.0, 1.0, 1.0, 0.60 * fade * taper2)
+				draw_primitive(PackedVector2Array([prev_a, pa, pb, prev_b]),
+					PackedColorArray([c, c, c, c]), PackedVector2Array())
+			prev_a = pa
+			prev_b = pb
 
 	# ---- 5) 沿弧飞散的火星 ----
 	if sparks and fade > 0.05:

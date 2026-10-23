@@ -50,7 +50,9 @@ void fragment() {
     }
     t = local;
     // 前缘加亮：越靠近当前推进的位置越亮，做出"刀锋在走"的感觉
-    float lead = smoothstep(0.10, 0.0, sweep - t);
+    // GLSL 里 edge0 > edge1 是未定义行为（部分驱动会直接 clamp 掉），
+    // 必须写成 1.0 - smoothstep(0.0, 0.10, x)。
+    float lead = 1.0 - smoothstep(0.0, 0.10, sweep - t);
     c.rgb *= 1.0 + edge_boost * lead;
     COLOR = vec4(c.rgb, c.a) * tint;
 }

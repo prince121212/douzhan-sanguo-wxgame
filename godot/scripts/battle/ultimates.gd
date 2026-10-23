@@ -178,7 +178,7 @@ static func _thrust_fx(b: Node, f: Fighter, length: float, width: float, angle :
 	b.vfx.spawn("thrust", {
 		"position": f.global_position + Vector2(f.facing * 10.0, -(f.h + f.body_height() * 0.42) * ds),
 		"rotation": angle * f.facing, "scale": Vector2(f.facing * ds, ds), "length": length, "width": width,
-		"color": f.theme_color.lerp(Color.WHITE, 0.3), "life": 0.26})
+		"color": f.theme_color.lerp(Color.WHITE, 0.3), "life": 0.26}, false)
 
 
 static func _slash_fx(b: Node, f: Fighter, radius: float, thick: float, a0: float, a1: float, life := 0.32) -> void:
@@ -187,7 +187,7 @@ static func _slash_fx(b: Node, f: Fighter, radius: float, thick: float, a0: floa
 		"position": f.global_position + Vector2(f.facing * 30.0 * ds, -(f.h + f.body_height() * 0.45) * ds),
 		"scale": Vector2(f.facing * ds, ds), "radius": radius, "thickness": thick,
 		"a0": deg_to_rad(a0), "a1": deg_to_rad(a1), "squash_y": 0.7,
-		"color": f.theme_color.lerp(Color.WHITE, 0.25), "life": life, "sweep_time": 0.08})
+		"color": f.theme_color.lerp(Color.WHITE, 0.25), "life": life, "sweep_time": 0.08}, false)
 
 
 # ---------------------------------------------------------------- 赵云 · 七进七出
